@@ -55,12 +55,12 @@
 <div class="container">
     <div class="header">
         <div class="title-group">
-            <h2>RoyalOfferFilter <span id="record-count" class="stats-badge">No data loaded</span></h2>
+            <h2>RoyalOfferFilter <span id="record-count" class="stats-badge">未加载数据</span></h2>
         </div>
         <div class="btn-group">
-            <button class="btn btn-config" onclick="openConfigModal()">⚙️ Points Config</button>
-            <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">📁 Import PDFs</button>
-            <button class="btn btn-success" onclick="exportToExcel()">📊 Export to Excel</button>
+            <button class="btn btn-config" onclick="openConfigModal()">⚙️ Points 配置</button>
+            <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">📁 导入 PDF</button>
+            <button class="btn btn-success" onclick="exportToExcel()">📊 导出 Excel</button>
             <input type="file" id="file-input" multiple accept=".pdf" style="display:none">
         </div>
     </div>
@@ -82,7 +82,7 @@
                 </tr>
             </thead>
             <tbody id="table-body">
-                <tr><td colspan="10" style="text-align:center; padding:100px; color:#909399;">Please import PDF files to begin...</td></tr>
+                <tr><td colspan="10" style="text-align:center; padding:100px; color:#909399;">请先导入 PDF 文件...</td></tr>
             </tbody>
         </table>
     </div>
@@ -90,27 +90,27 @@
 
 <div id="config-modal" class="modal-overlay">
     <div class="modal-content">
-        <h3 style="margin-bottom:5px;">Points Mapping Settings</h3>
-        <p style="font-size: 11px; color: #666; margin-bottom: 10px;">Define points based on Offer Code suffix.</p>
+        <h3 style="margin-bottom:5px;">Points 对应设置</h3>
+        <p style="font-size: 11px; color: #666; margin-bottom: 10px;">根据 Offer Code 后缀匹配 Points。</p>
         <div class="config-scroll" id="config-list"></div>
-        <button class="btn" style="width: 100%; border-style: dashed; margin-bottom:10px;" onclick="addConfigRow()">+ Add New Rule</button>
+        <button class="btn" style="width: 100%; border-style: dashed; margin-bottom:10px;" onclick="addConfigRow()">+ 添加新规则</button>
         <div style="display: flex; justify-content: space-between; gap: 8px;">
-            <button class="btn btn-config" onclick="resetToDefault()">Reset Defaults</button>
-            <div style="display: flex; gap: 8px;">
-                <button class="btn" onclick="toggleConfigModal(false)">Cancel</button>
-                <button class="btn btn-primary" onclick="savePointsConfig()">Save & Apply</button>
+            <button class="btn btn-config" onclick="resetToDefault()">恢复默认</button>
+            <div style="gap: 8px; display: flex;">
+                <button class="btn" onclick="toggleConfigModal(false)">取消</button>
+                <button class="btn btn-primary" onclick="savePointsConfig()">保存并应用</button>
             </div>
         </div>
     </div>
 </div>
 
 <div id="filter-popover" class="filter-popover">
-    <input type="text" class="search-box" id="popover-search" placeholder="Search..." oninput="handlePopoverSearch()">
-    <div style="font-size:12px; margin-bottom:5px;"><a href="#" onclick="toggleSelectAll(true);return false;">All</a> | <a href="#" onclick="toggleSelectAll(false);return false;">None</a></div>
+    <input type="text" class="search-box" id="popover-search" placeholder="搜索..." oninput="handlePopoverSearch()">
+    <div style="font-size:12px; margin-bottom:5px;"><a href="#" onclick="toggleSelectAll(true);return false;">全选</a> | <a href="#" onclick="toggleSelectAll(false);return false;">清空</a></div>
     <ul class="check-list" id="popover-list"></ul>
     <div class="popover-footer">
-        <button class="btn" onclick="closeFilter()">Cancel</button>
-        <button class="btn btn-primary" onclick="applyCurrentFilter()">OK</button>
+        <button class="btn" onclick="closeFilter()">取消</button>
+        <button class="btn btn-primary" onclick="applyCurrentFilter()">应用</button>
     </div>
 </div>
 
@@ -123,24 +123,13 @@
     let currentFilters = {}; 
     let sortState = { field: '', asc: true };
 
-    const ORDER_KEY = 'royal_col_order_v5';
-    const POINTS_KEY = 'royal_points_map_v5';
+    const ORDER_KEY = 'royal_col_order_v6';
+    const POINTS_KEY = 'royal_points_map_v6';
 
-    // 1. 同步默认配置内容
     const DEFAULT_POINTS = {
-        'VIP2': '40000', 
-        '01': '25000', 
-        '02': '15000', 
-        '02A': '9000',
-        '03': '6500',
-        '03A': '4000',
-        '04': '3000',
-        '05': '2000',
-        '06': '1500',
-        '07': '1200',
-        '08': '800',
-        '09': '600',
-        '10': '400'
+        'VIP2': '40000', '01': '25000', '02': '15000', '02A': '9000',
+        '03': '6500', '03A': '4000', '04': '3000', '05': '2000',
+        '06': '1500', '07': '1200', '08': '800', '09': '600', '10': '400'
     };
     let pointsMapping = {...DEFAULT_POINTS};
 
@@ -166,20 +155,13 @@
     function openConfigModal() {
         const list = document.getElementById('config-list');
         list.innerHTML = '';
-        
-        // 2. 核心修复：对配置项进行逻辑排序（VIP在前，数字按大小排列）
         const sortedKeys = Object.keys(pointsMapping).sort((a, b) => {
             const aIsPureNum = /^\d+$/.test(a);
             const bIsPureNum = /^\d+$/.test(b);
-            
-            // 非纯数字（如 VIP2）排在前面
             if (!aIsPureNum && bIsPureNum) return -1;
             if (aIsPureNum && !bIsPureNum) return 1;
-            
-            // 如果都是数字或都包含字母，按自然数逻辑排序（01 < 02 < 10）
-            return a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'});
+            return a.localeCompare(b, undefined, {numeric: true});
         });
-
         sortedKeys.forEach(key => addConfigRow(key, pointsMapping[key]));
         toggleConfigModal(true);
     }
@@ -187,54 +169,92 @@
     function addConfigRow(suffix = '', val = '') {
         const div = document.createElement('div');
         div.className = 'config-item';
-        div.innerHTML = `
-            <input type="text" placeholder="Suffix" class="conf-suffix" value="${suffix}">
-            <input type="text" placeholder="Points" class="conf-val" value="${val}">
-            <button class="btn btn-danger" onclick="this.parentElement.remove()">✕</button>
-        `;
+        div.innerHTML = `<input type="text" class="conf-suffix" value="${suffix}"><input type="text" class="conf-val" value="${val}"><button class="btn btn-danger" onclick="this.parentElement.remove()">✕</button>`;
         document.getElementById('config-list').appendChild(div);
     }
 
     function savePointsConfig() {
-        const newMapping = {};
+        const newMap = {};
         document.querySelectorAll('.config-item').forEach(item => {
             const s = item.querySelector('.conf-suffix').value.trim();
             const v = item.querySelector('.conf-val').value.trim();
-            if (s) newMapping[s] = v;
+            if (s) newMap[s] = v;
         });
-        pointsMapping = newMapping;
+        pointsMapping = newMap;
         localStorage.setItem(POINTS_KEY, JSON.stringify(pointsMapping));
-        if(allRecords.length > 0) {
-            allRecords.forEach(r => r.points = getPointsValue(r.offer));
-            runFilters();
-        }
+        allRecords.forEach(r => r.points = getPointsValue(r.offer));
+        runFilters();
         toggleConfigModal(false);
     }
 
-    function resetToDefault() {
-        pointsMapping = {...DEFAULT_POINTS};
-        openConfigModal();
-    }
+    function resetToDefault() { pointsMapping = {...DEFAULT_POINTS}; openConfigModal(); }
 
     function getPointsValue(code) {
-        // 优先全匹配
         if (pointsMapping[code]) return pointsMapping[code];
-        // 其次匹配结尾
-        for (let key in pointsMapping) {
-            if (code.endsWith(key)) return pointsMapping[key];
-        }
+        for (let key in pointsMapping) { if (code.endsWith(key)) return pointsMapping[key]; }
         return 'N/A';
     }
 
     function toggleConfigModal(show) { document.getElementById('config-modal').style.display = show ? 'flex' : 'none'; }
 
-    // --- PDF Logic ---
+    // --- Core Filtering Logic (Optimized for Cascading) ---
+    function openFilter(e, field) {
+        e.stopPropagation();
+        activeFilterField = field;
+        const pop = document.getElementById('filter-popover');
+        const r = e.target.getBoundingClientRect();
+        pop.style.display = 'block';
+        pop.style.left = Math.min(r.left, window.innerWidth - 260) + 'px';
+        pop.style.top = (r.bottom + window.scrollY + 5) + 'px';
+
+        // 这里是优化核心：
+        // 1. 如果该列没有被筛选，显示当前【已筛选结果】中出现的选项
+        // 2. 如果该列已经被筛选了，显示【如果撤销这一列筛选后】会出现的选项（方便用户改选）
+        let sourceForOptions = [];
+        if (!currentFilters[field]) {
+            sourceForOptions = filteredRecords.length > 0 ? filteredRecords : allRecords;
+        } else {
+            sourceForOptions = allRecords.filter(r => 
+                Object.keys(currentFilters).every(f => f === field || currentFilters[f].includes(r[f]))
+            );
+        }
+
+        const vals = [...new Set(sourceForOptions.map(x => x[field]))].sort();
+        document.getElementById('popover-list').innerHTML = vals.map(v => `
+            <li><input type="checkbox" value="${v}" ${(!currentFilters[field] || currentFilters[field].includes(v)) ? 'checked' : ''}><span>${v}</span></li>
+        `).join('');
+        document.getElementById('popover-search').value = '';
+    }
+
+    function applyCurrentFilter() {
+        const checked = Array.from(document.querySelectorAll('#popover-list input:checked')).map(i => i.value);
+        const allInList = Array.from(document.querySelectorAll('#popover-list input')).map(i => i.value);
+        
+        if (checked.length === allInList.length) delete currentFilters[activeFilterField];
+        else currentFilters[activeFilterField] = checked;
+
+        document.querySelectorAll('.filter-trigger').forEach(t => {
+            const f = t.closest('th').dataset.field;
+            t.classList.toggle('active', !!currentFilters[f]);
+        });
+
+        runFilters();
+        closeFilter();
+    }
+
+    function runFilters() {
+        filteredRecords = allRecords.filter(r => 
+            Object.keys(currentFilters).every(f => currentFilters[f].includes(r[f]))
+        );
+        updateTable();
+    }
+
+    // --- Rest of the functionality ---
     document.getElementById('file-input').addEventListener('change', async (e) => {
         const files = e.target.files;
         if (!files.length) return;
         allRecords = [];
-        document.getElementById('table-body').innerHTML = `<tr><td colspan="10" style="text-align:center; padding:100px;">Analyzing Files...</td></tr>`;
-
+        document.getElementById('table-body').innerHTML = `<tr><td colspan="10" style="text-align:center; padding:100px;">正在解析 PDF...</td></tr>`;
         for (let file of files) {
             const arrayBuffer = await file.arrayBuffer();
             const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
@@ -258,12 +278,11 @@
             const bonus = block.match(/\$(\d+)\s*FreePlay/i);
             const d = new Date(m[4]);
             if(isNaN(d.getTime())) continue;
-
             allRecords.push({
                 offer: m[1], points: getPointsValue(m[1]), ship: m[2].replace('®','').trim(),
                 port: m[3].trim(), dateStr: m[4], dateValue: d.getTime(),
                 month: d.toLocaleString('en-US', { month: 'long', year: 'numeric' }),
-                itinerary: block.split(m[4])[1]?.split("Cruise")[0].trim() || "Details",
+                itinerary: block.split(m[4])[1]?.split("Cruise")[0].trim() || "详情",
                 bonus: bonus ? bonus[0] : "-", room: room ? room[0] : "Other",
                 offerType: guests ? `Fare For ${guests[1]} Guest${guests[1]>1?'s':''}` : "N/A"
             });
@@ -274,47 +293,17 @@
         const tbody = document.getElementById('table-body');
         const fields = Array.from(document.querySelectorAll('#header-row th')).map(th => th.dataset.field);
         if (filteredRecords.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="${fields.length}" style="text-align:center; padding:50px;">No matching records.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="${fields.length}" style="text-align:center; padding:50px;">暂无匹配数据</td></tr>`;
             return;
         }
-        tbody.innerHTML = filteredRecords.map(item => `
-            <tr>${fields.map(f => `<td>${f==='bonus'&&item[f]!='-' ? `<span class="tag-bonus">${item[f]}</span>` : item[f]}</td>`).join('')}</tr>
-        `).join('');
-        document.getElementById('record-count').innerText = `${filteredRecords.length} records`;
+        tbody.innerHTML = filteredRecords.map(item => `<tr>${fields.map(f => `<td>${f==='bonus'&&item[f]!='-' ? `<span class="tag-bonus">${item[f]}</span>` : item[f]}</td>`).join('')}</tr>`).join('');
+        document.getElementById('record-count').innerText = `${filteredRecords.length} 条记录`;
     }
 
     function doSort(field) {
         sortState.asc = (sortState.field === field) ? !sortState.asc : true;
         sortState.field = field;
         filteredRecords.sort((a, b) => (a[field] < b[field] ? -1 : 1) * (sortState.asc ? 1 : -1));
-        updateTable();
-    }
-
-    function openFilter(e, field) {
-        e.stopPropagation();
-        activeFilterField = field;
-        const pop = document.getElementById('filter-popover');
-        const r = e.target.getBoundingClientRect();
-        pop.style.display = 'block';
-        pop.style.left = Math.min(r.left, window.innerWidth - 260) + 'px';
-        pop.style.top = (r.bottom + window.scrollY + 5) + 'px';
-        const vals = [...new Set(allRecords.map(x => x[field]))].sort();
-        document.getElementById('popover-list').innerHTML = vals.map(v => `
-            <li><input type="checkbox" value="${v}" ${(!currentFilters[field] || currentFilters[field].includes(v)) ? 'checked' : ''}><span>${v}</span></li>
-        `).join('');
-    }
-
-    function applyCurrentFilter() {
-        const checked = Array.from(document.querySelectorAll('#popover-list input:checked')).map(i => i.value);
-        if (checked.length === document.querySelectorAll('#popover-list input').length) delete currentFilters[activeFilterField];
-        else currentFilters[activeFilterField] = checked;
-        document.querySelectorAll('.filter-trigger').forEach(t => t.classList.toggle('active', !!currentFilters[t.closest('th').dataset.field]));
-        runFilters();
-        closeFilter();
-    }
-
-    function runFilters() {
-        filteredRecords = allRecords.filter(r => Object.keys(currentFilters).every(f => currentFilters[f].includes(r[f])));
         updateTable();
     }
 
@@ -328,14 +317,12 @@
             th.ondrop = () => {
                 th.classList.remove('drag-over');
                 if (dragSrc !== th) {
-                    const children = Array.from(row.children);
-                    if (children.indexOf(dragSrc) < children.indexOf(th)) th.after(dragSrc);
+                    if (Array.from(row.children).indexOf(dragSrc) < Array.from(row.children).indexOf(th)) th.after(dragSrc);
                     else th.before(dragSrc);
                     localStorage.setItem(ORDER_KEY, JSON.stringify(Array.from(row.children).map(c => c.dataset.field)));
                     updateTable();
                 }
             };
-            th.ondragend = () => th.classList.remove('dragging');
         });
     }
 
