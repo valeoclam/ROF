@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>RoyalOfferFilter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root { --primary: #003399; --accent: #1a73e8; --border: #dcdfe6; --text: #303133; --danger: #f56c6c; }
+        body { font-family: "Segoe UI", Tahoma, sans-serif; background: #f5f7fa; margin: 0; padding: 20px; color: var(--text); }
+        .container { max-width: 100%; margin: 0 auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); padding: 20px; min-height: 90vh; display: flex; flex-direction: column; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #ebeef5; }
+        .title-group h2 { margin: 0; color: var(--primary); font-size: 22px; }
+        .stats-badge { background: #ecf5ff; color: #409eff; padding: 4px 12px; border-radius: 20px; font-size: 13px; margin-left: 10px; border: 1px solid #d9ecff; }
+        
+        .btn { padding: 8px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; border: 1px solid #dcdfe6; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+        .btn-primary { background: var(--accent); color: white; border: none; }
+        .btn-success { background: #67c23a; color: white; border: none; }
+        .btn-config { background: #909399; color: white; border: none; }
+        .btn-danger { background: var(--danger); color: white; border: none; padding: 4px 8px; line-height: 1; }
+
+        .table-wrapper { flex: 1; overflow: auto; border: 1px solid var(--border); border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 1500px; }
+        
+        th { background: #f8f9fb; padding: 0; border-right: 1px solid var(--border); border-bottom: 2px solid var(--border); position: sticky; top: 0; z-index: 20; user-select: none; }
+        .th-inner { display: flex; align-items: center; justify-content: space-between; padding: 12px 8px; cursor: move; }
+        .th-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; font-size: 13px; font-weight: bold; }
+        
+        .filter-trigger { cursor: pointer; padding: 4px; color: #c0c4cc; border-radius: 3px; }
+        .filter-trigger.active { color: var(--accent); }
+
+        /* Configuration Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; z-index: 3000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 450px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); max-height: 80vh; display: flex; flex-direction: column; }
+        .config-scroll { overflow-y: auto; flex: 1; margin: 15px 0; }
+        .config-item { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .config-item input { padding: 8px; border: 1px solid var(--border); border-radius: 4px; flex: 1; font-size: 13px; }
+
+        .filter-popover { position: fixed; background: white; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 4px; z-index: 2000; width: 240px; display: none; padding: 12px; }
+        .search-box { width: 100%; box-sizing: border-box; padding: 8px; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 4px; }
+        .check-list { max-height: 250px; overflow-y: auto; list-style: none; padding: 0; margin: 10px 0; border-top: 1px solid #eee; }
+        .check-list li { padding: 6px 0; display: flex; align-items: center; font-size: 13px; }
+        .check-list input { margin-right: 10px; }
+
+        .dragging { opacity: 0.4; background: #e8f0fe !important; }
+        .drag-over { border-left: 3px solid var(--accent) !important; }
+
+        tbody td { padding: 10px 8px; border-bottom: 1px solid #ebeef5; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        tr:hover { background: #f5f7fa; }
+        .tag-bonus { background: #fdf6ec; color: #e6a23c; padding: 2px 6px; border-radius: 4px; font-weight: bold; border: 1px solid #faecd8; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <div class="title-group">
+            <h2>RoyalOfferFilter <span id="record-count" class="stats-badge">No data loaded</span></h2>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-config" onclick="openConfigModal()">⚙️ Points Config</button>
+            <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">📁 Import PDFs</button>
+            <button class="btn btn-success" onclick="exportToExcel()">📊 Export to Excel</button>
+            <input type="file" id="file-input" multiple accept=".pdf" style="display:none">
+        </div>
+    </div>
+
+    <div class="table-wrapper">
+        <table id="cruise-table">
+            <thead>
+                <tr id="header-row">
+                    <th draggable="true" data-field="offer" width="110"><div class="th-inner"><span class="th-label" onclick="doSort('offer')">Offer Code</span><span class="filter-trigger" onclick="openFilter(event, 'offer')">▼</span></div></th>
+                    <th draggable="true" data-field="points" width="100"><div class="th-inner"><span class="th-label" onclick="doSort('points')">Points</span><span class="filter-trigger" onclick="openFilter(event, 'points')">▼</span></div></th>
+                    <th draggable="true" data-field="ship" width="180"><div class="th-inner"><span class="th-label" onclick="doSort('ship')">Ship</span><span class="filter-trigger" onclick="openFilter(event, 'ship')">▼</span></div></th>
+                    <th draggable="true" data-field="port" width="150"><div class="th-inner"><span class="th-label" onclick="doSort('port')">Departure Port</span><span class="filter-trigger" onclick="openFilter(event, 'port')">▼</span></div></th>
+                    <th draggable="true" data-field="dateStr" width="150"><div class="th-inner"><span class="th-label" onclick="doSort('dateValue')">Sail Date</span><span class="filter-trigger" onclick="openFilter(event, 'dateStr')">▼</span></div></th>
+                    <th draggable="true" data-field="month" width="120"><div class="th-inner"><span class="th-label" onclick="doSort('month')">Month</span><span class="filter-trigger" onclick="openFilter(event, 'month')">▼</span></div></th>
+                    <th draggable="true" data-field="itinerary" width="280"><div class="th-inner"><span class="th-label" onclick="doSort('itinerary')">Itinerary</span><span class="filter-trigger" onclick="openFilter(event, 'itinerary')">▼</span></div></th>
+                    <th draggable="true" data-field="bonus" width="100"><div class="th-inner"><span class="th-label" onclick="doSort('bonus')">Bonus</span><span class="filter-trigger" onclick="openFilter(event, 'bonus')">▼</span></div></th>
+                    <th draggable="true" data-field="room" width="150"><div class="th-inner"><span class="th-label" onclick="doSort('room')">Stateroom</span><span class="filter-trigger" onclick="openFilter(event, 'room')">▼</span></div></th>
+                    <th draggable="true" data-field="offerType" width="180"><div class="th-inner"><span class="th-label" onclick="doSort('offerType')">Offer Type</span><span class="filter-trigger" onclick="openFilter(event, 'offerType')">▼</span></div></th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                <tr><td colspan="10" style="text-align:center; padding:100px; color:#909399;">Please import PDF files to begin...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="config-modal" class="modal-overlay">
+    <div class="modal-content">
+        <h3 style="margin-bottom:5px;">Points Mapping Settings</h3>
+        <p style="font-size: 11px; color: #666; margin-bottom: 10px;">Define points for Offer Code suffixes (e.g., '04' -> 2400)</p>
+        <div class="config-scroll" id="config-list"></div>
+        <button class="btn" style="width: 100%; border-style: dashed; margin-bottom:10px;" onclick="addConfigRow()">+ Add New Rule</button>
+        <div style="display: flex; justify-content: space-between; gap: 8px;">
+            <button class="btn btn-config" onclick="resetToDefault()">Reset Defaults</button>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn" onclick="toggleConfigModal(false)">Cancel</button>
+                <button class="btn btn-primary" onclick="savePointsConfig()">Save & Apply</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="filter-popover" class="filter-popover">
+    <input type="text" class="search-box" id="popover-search" placeholder="Search..." oninput="handlePopoverSearch()">
+    <div style="font-size:12px; margin-bottom:5px;"><a href="#" onclick="toggleSelectAll(true);return false;">All</a> | <a href="#" onclick="toggleSelectAll(false);return false;">None</a></div>
+    <ul class="check-list" id="popover-list"></ul>
+    <div class="popover-footer">
+        <button class="btn" onclick="closeFilter()">Cancel</button>
+        <button class="btn btn-primary" onclick="applyCurrentFilter()">OK</button>
+    </div>
+</div>
+
+<script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+    let allRecords = [];
+    let filteredRecords = [];
+    let activeFilterField = '';
+    let currentFilters = {}; 
+    let sortState = { field: '', asc: true };
+
+    const ORDER_KEY = 'royal_col_order_v3';
+    const POINTS_KEY = 'royal_points_map_v3';
+
+    // Default configuration based on your provided screenshot
+    const DEFAULT_POINTS = {
+        'VIP2': '40000', 
+        '01': '25000', 
+        '02': '15000', 
+        '02A': '9000',
+        '03': '6500',
+		'03A': '4000',
+		'04': '3000',
+		'05': '2000',
+		'06': '1500',
+		'07': '1200',
+		'08': '800',
+		'09': '600',
+        '10': '400'
+    };
+    let pointsMapping = {...DEFAULT_POINTS};
+
+    window.addEventListener('DOMContentLoaded', () => {
+        const savedPoints = localStorage.getItem(POINTS_KEY);
+        if (savedPoints) pointsMapping = JSON.parse(savedPoints);
+        
+        applySavedColumnOrder();
+        initDragAndDrop();
+    });
+
+    function applySavedColumnOrder() {
+        const savedOrder = localStorage.getItem(ORDER_KEY);
+        if (savedOrder) {
+            const order = JSON.parse(savedOrder);
+            const headerRow = document.getElementById('header-row');
+            const thMap = {};
+            Array.from(headerRow.children).forEach(th => thMap[th.dataset.field] = th);
+            order.forEach(field => { if (thMap[field]) headerRow.appendChild(thMap[field]); });
+        }
+    }
+
+    // --- Config Logic ---
+    function openConfigModal() {
+        const list = document.getElementById('config-list');
+        list.innerHTML = '';
+        Object.entries(pointsMapping).forEach(([suffix, val]) => addConfigRow(suffix, val));
+        toggleConfigModal(true);
+    }
+
+    function addConfigRow(suffix = '', val = '') {
+        const div = document.createElement('div');
+        div.className = 'config-item';
+        div.innerHTML = `
+            <input type="text" placeholder="Suffix" class="conf-suffix" value="${suffix}">
+            <input type="text" placeholder="Points" class="conf-val" value="${val}">
+            <button class="btn btn-danger" onclick="this.parentElement.remove()">✕</button>
+        `;
+        document.getElementById('config-list').appendChild(div);
+    }
+
+    function savePointsConfig() {
+        const newMapping = {};
+        document.querySelectorAll('.config-item').forEach(item => {
+            const s = item.querySelector('.conf-suffix').value.trim();
+            const v = item.querySelector('.conf-val').value.trim();
+            if (s) newMapping[s] = v;
+        });
+        pointsMapping = newMapping;
+        localStorage.setItem(POINTS_KEY, JSON.stringify(pointsMapping));
+        if(allRecords.length > 0) {
+            allRecords.forEach(r => r.points = getPointsValue(r.offer));
+            runFilters();
+        }
+        toggleConfigModal(false);
+    }
+
+    function resetToDefault() {
+        pointsMapping = {...DEFAULT_POINTS};
+        openConfigModal();
+    }
+
+    function getPointsValue(code) {
+        const suffix = code.slice(-2);
+        return pointsMapping[suffix] || pointsMapping[code] || 'N/A';
+    }
+
+    function toggleConfigModal(show) { document.getElementById('config-modal').style.display = show ? 'flex' : 'none'; }
+
+    // --- Table & PDF Logic ---
+    document.getElementById('file-input').addEventListener('change', async (e) => {
+        const files = e.target.files;
+        if (!files.length) return;
+        allRecords = [];
+        document.getElementById('table-body').innerHTML = `<tr><td colspan="10" style="text-align:center; padding:100px;">Processing PDFs...</td></tr>`;
+
+        for (let file of files) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const text = (await page.getTextContent()).items.map(item => item.str).join(" ");
+                parseText(text);
+            }
+        }
+        filteredRecords = [...allRecords];
+        updateTable();
+    });
+
+    function parseText(text) {
+        const regex = /(2604A\d{2})\s+([\w\s®\-]+?)\s+([A-Z][\w\s,]+?)\s+([A-Z][a-z]+\s\d{1,2},\s\d{4})/g;
+        let m;
+        while ((m = regex.exec(text)) !== null) {
+            const block = text.substring(m.index, m.index + 450);
+            const guests = block.match(/Cruise Fare For\s+(\d+)\s+Guest/i);
+            const room = block.match(/(Interior|Oceanview|Balcony|Suite)\s*-\s*GTY/i);
+            const bonus = block.match(/\$(\d+)\s*FreePlay/i);
+            const d = new Date(m[4]);
+            allRecords.push({
+                offer: m[1], points: getPointsValue(m[1]), ship: m[2].replace('®','').trim(),
+                port: m[3].trim(), dateStr: m[4], dateValue: d.getTime(),
+                month: d.toLocaleString('en-US', { month: 'long', year: 'numeric' }),
+                itinerary: block.split(m[4])[1]?.split("Cruise")[0].trim() || "Details",
+                bonus: bonus ? bonus[0] : "-", room: room ? room[0] : "Other",
+                offerType: guests ? `Cruise Fare For ${guests[1]} Guest${guests[1]>1?'s':''}` : "N/A"
+            });
+        }
+    }
+
+    function updateTable() {
+        const tbody = document.getElementById('table-body');
+        const fields = Array.from(document.querySelectorAll('#header-row th')).map(th => th.dataset.field);
+        if (filteredRecords.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="${fields.length}" style="text-align:center; padding:50px;">No data</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = filteredRecords.map(item => `
+            <tr>${fields.map(f => `<td>${f==='bonus'&&item[f]!='-' ? `<span class="tag-bonus">${item[f]}</span>` : item[f]}</td>`).join('')}</tr>
+        `).join('');
+        document.getElementById('record-count').innerText = `${filteredRecords.length} records`;
+    }
+
+    function doSort(field) {
+        sortState.asc = (sortState.field === field) ? !sortState.asc : true;
+        sortState.field = field;
+        filteredRecords.sort((a, b) => (a[field] < b[field] ? -1 : 1) * (sortState.asc ? 1 : -1));
+        updateTable();
+    }
+
+    function openFilter(e, field) {
+        e.stopPropagation();
+        activeFilterField = field;
+        const pop = document.getElementById('filter-popover');
+        const r = e.target.getBoundingClientRect();
+        pop.style.display = 'block';
+        pop.style.left = Math.min(r.left, window.innerWidth - 260) + 'px';
+        pop.style.top = (r.bottom + window.scrollY + 5) + 'px';
+        const vals = [...new Set(allRecords.map(x => x[field]))].sort();
+        document.getElementById('popover-list').innerHTML = vals.map(v => `
+            <li><input type="checkbox" value="${v}" ${(!currentFilters[field] || currentFilters[field].includes(v)) ? 'checked' : ''}><span>${v}</span></li>
+        `).join('');
+    }
+
+    function applyCurrentFilter() {
+        const checked = Array.from(document.querySelectorAll('#popover-list input:checked')).map(i => i.value);
+        const all = Array.from(document.querySelectorAll('#popover-list input')).map(i => i.value);
+        if (checked.length === all.length) delete currentFilters[activeFilterField];
+        else currentFilters[activeFilterField] = checked;
+        document.querySelectorAll('.filter-trigger').forEach(t => t.classList.toggle('active', !!currentFilters[t.closest('th').dataset.field]));
+        runFilters();
+        closeFilter();
+    }
+
+    function runFilters() {
+        filteredRecords = allRecords.filter(r => Object.keys(currentFilters).every(f => currentFilters[f].includes(r[f])));
+        updateTable();
+    }
+
+    function initDragAndDrop() {
+        const row = document.getElementById('header-row');
+        let dragSrc = null;
+        Array.from(row.children).forEach(th => {
+            th.ondragstart = () => { dragSrc = th; th.classList.add('dragging'); };
+            th.ondragover = (e) => { e.preventDefault(); th.classList.add('drag-over'); };
+            th.ondragleave = () => th.classList.remove('drag-over');
+            th.ondrop = () => {
+                th.classList.remove('drag-over');
+                if (dragSrc !== th) {
+                    const children = Array.from(row.children);
+                    if (children.indexOf(dragSrc) < children.indexOf(th)) th.after(dragSrc);
+                    else th.before(dragSrc);
+                    localStorage.setItem(ORDER_KEY, JSON.stringify(Array.from(row.children).map(c => c.dataset.field)));
+                    updateTable();
+                }
+            };
+            th.ondragend = () => th.classList.remove('dragging');
+        });
+    }
+
+    function exportToExcel() {
+        const wb = XLSX.utils.table_to_book(document.getElementById("cruise-table"));
+        XLSX.writeFile(wb, `RoyalOffer_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
+    function closeFilter() { document.getElementById('filter-popover').style.display = 'none'; }
+    function handlePopoverSearch() {
+        const t = document.getElementById('popover-search').value.toLowerCase();
+        document.querySelectorAll('#popover-list li').forEach(li => li.style.display = li.innerText.toLowerCase().includes(t) ? 'flex' : 'none');
+    }
+    function toggleSelectAll(s) { document.querySelectorAll('#popover-list input').forEach(i => i.checked = s); }
+    window.onclick = (e) => { 
+        if (!e.target.closest('.filter-popover') && !e.target.closest('.filter-trigger')) closeFilter();
+        if (e.target.classList.contains('modal-overlay')) toggleConfigModal(false);
+    };
+</script>
+</body>
+</html>
