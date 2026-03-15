@@ -30,7 +30,6 @@
         .filter-trigger { cursor: pointer; padding: 4px; color: #c0c4cc; border-radius: 3px; }
         .filter-trigger.active { color: var(--accent); }
 
-        /* Configuration Modal */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; z-index: 3000; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 25px; border-radius: 8px; width: 450px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); max-height: 80vh; display: flex; flex-direction: column; }
         .config-scroll { overflow-y: auto; flex: 1; margin: 15px 0; }
@@ -92,7 +91,7 @@
 <div id="config-modal" class="modal-overlay">
     <div class="modal-content">
         <h3 style="margin-bottom:5px;">Points Mapping Settings</h3>
-        <p style="font-size: 11px; color: #666; margin-bottom: 10px;">Define points for Offer Code suffixes (e.g., '04' -> 2400)</p>
+        <p style="font-size: 11px; color: #666; margin-bottom: 10px;">Define points based on Offer Code suffix.</p>
         <div class="config-scroll" id="config-list"></div>
         <button class="btn" style="width: 100%; border-style: dashed; margin-bottom:10px;" onclick="addConfigRow()">+ Add New Rule</button>
         <div style="display: flex; justify-content: space-between; gap: 8px;">
@@ -124,23 +123,23 @@
     let currentFilters = {}; 
     let sortState = { field: '', asc: true };
 
-    const ORDER_KEY = 'royal_col_order_v3';
-    const POINTS_KEY = 'royal_points_map_v3';
+    const ORDER_KEY = 'royal_col_order_v5';
+    const POINTS_KEY = 'royal_points_map_v5';
 
-    // Default configuration based on your provided screenshot
+    // 1. 同步默认配置内容
     const DEFAULT_POINTS = {
         'VIP2': '40000', 
         '01': '25000', 
         '02': '15000', 
         '02A': '9000',
         '03': '6500',
-		'03A': '4000',
-		'04': '3000',
-		'05': '2000',
-		'06': '1500',
-		'07': '1200',
-		'08': '800',
-		'09': '600',
+        '03A': '4000',
+        '04': '3000',
+        '05': '2000',
+        '06': '1500',
+        '07': '1200',
+        '08': '800',
+        '09': '600',
         '10': '400'
     };
     let pointsMapping = {...DEFAULT_POINTS};
@@ -148,7 +147,6 @@
     window.addEventListener('DOMContentLoaded', () => {
         const savedPoints = localStorage.getItem(POINTS_KEY);
         if (savedPoints) pointsMapping = JSON.parse(savedPoints);
-        
         applySavedColumnOrder();
         initDragAndDrop();
     });
@@ -168,7 +166,21 @@
     function openConfigModal() {
         const list = document.getElementById('config-list');
         list.innerHTML = '';
-        Object.entries(pointsMapping).forEach(([suffix, val]) => addConfigRow(suffix, val));
+        
+        // 2. 核心修复：对配置项进行逻辑排序（VIP在前，数字按大小排列）
+        const sortedKeys = Object.keys(pointsMapping).sort((a, b) => {
+            const aIsPureNum = /^\d+$/.test(a);
+            const bIsPureNum = /^\d+$/.test(b);
+            
+            // 非纯数字（如 VIP2）排在前面
+            if (!aIsPureNum && bIsPureNum) return -1;
+            if (aIsPureNum && !bIsPureNum) return 1;
+            
+            // 如果都是数字或都包含字母，按自然数逻辑排序（01 < 02 < 10）
+            return a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'});
+        });
+
+        sortedKeys.forEach(key => addConfigRow(key, pointsMapping[key]));
         toggleConfigModal(true);
     }
 
@@ -205,18 +217,23 @@
     }
 
     function getPointsValue(code) {
-        const suffix = code.slice(-2);
-        return pointsMapping[suffix] || pointsMapping[code] || 'N/A';
+        // 优先全匹配
+        if (pointsMapping[code]) return pointsMapping[code];
+        // 其次匹配结尾
+        for (let key in pointsMapping) {
+            if (code.endsWith(key)) return pointsMapping[key];
+        }
+        return 'N/A';
     }
 
     function toggleConfigModal(show) { document.getElementById('config-modal').style.display = show ? 'flex' : 'none'; }
 
-    // --- Table & PDF Logic ---
+    // --- PDF Logic ---
     document.getElementById('file-input').addEventListener('change', async (e) => {
         const files = e.target.files;
         if (!files.length) return;
         allRecords = [];
-        document.getElementById('table-body').innerHTML = `<tr><td colspan="10" style="text-align:center; padding:100px;">Processing PDFs...</td></tr>`;
+        document.getElementById('table-body').innerHTML = `<tr><td colspan="10" style="text-align:center; padding:100px;">Analyzing Files...</td></tr>`;
 
         for (let file of files) {
             const arrayBuffer = await file.arrayBuffer();
@@ -232,7 +249,7 @@
     });
 
     function parseText(text) {
-        const regex = /(2604A\d{2})\s+([\w\s®\-]+?)\s+([A-Z][\w\s,]+?)\s+([A-Z][a-z]+\s\d{1,2},\s\d{4})/g;
+        const regex = /([A-Z0-9]{5,})\s+([\w\s®\-]+?)\s+([A-Z][\w\s,]+?)\s+([A-Z][a-z]+\s\d{1,2},\s\d{4})/g;
         let m;
         while ((m = regex.exec(text)) !== null) {
             const block = text.substring(m.index, m.index + 450);
@@ -240,13 +257,15 @@
             const room = block.match(/(Interior|Oceanview|Balcony|Suite)\s*-\s*GTY/i);
             const bonus = block.match(/\$(\d+)\s*FreePlay/i);
             const d = new Date(m[4]);
+            if(isNaN(d.getTime())) continue;
+
             allRecords.push({
                 offer: m[1], points: getPointsValue(m[1]), ship: m[2].replace('®','').trim(),
                 port: m[3].trim(), dateStr: m[4], dateValue: d.getTime(),
                 month: d.toLocaleString('en-US', { month: 'long', year: 'numeric' }),
                 itinerary: block.split(m[4])[1]?.split("Cruise")[0].trim() || "Details",
                 bonus: bonus ? bonus[0] : "-", room: room ? room[0] : "Other",
-                offerType: guests ? `Cruise Fare For ${guests[1]} Guest${guests[1]>1?'s':''}` : "N/A"
+                offerType: guests ? `Fare For ${guests[1]} Guest${guests[1]>1?'s':''}` : "N/A"
             });
         }
     }
@@ -255,7 +274,7 @@
         const tbody = document.getElementById('table-body');
         const fields = Array.from(document.querySelectorAll('#header-row th')).map(th => th.dataset.field);
         if (filteredRecords.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="${fields.length}" style="text-align:center; padding:50px;">No data</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="${fields.length}" style="text-align:center; padding:50px;">No matching records.</td></tr>`;
             return;
         }
         tbody.innerHTML = filteredRecords.map(item => `
@@ -287,8 +306,7 @@
 
     function applyCurrentFilter() {
         const checked = Array.from(document.querySelectorAll('#popover-list input:checked')).map(i => i.value);
-        const all = Array.from(document.querySelectorAll('#popover-list input')).map(i => i.value);
-        if (checked.length === all.length) delete currentFilters[activeFilterField];
+        if (checked.length === document.querySelectorAll('#popover-list input').length) delete currentFilters[activeFilterField];
         else currentFilters[activeFilterField] = checked;
         document.querySelectorAll('.filter-trigger').forEach(t => t.classList.toggle('active', !!currentFilters[t.closest('th').dataset.field]));
         runFilters();
