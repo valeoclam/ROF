@@ -2,49 +2,41 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>RoyalOfferFilter</title>
+    <title>RoyalOfferFilter - Full Optimized</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        :root { --primary: #003399; --accent: #1a73e8; --border: #dcdfe6; --text: #303133; --danger: #f56c6c; }
+        :root { --primary: #003399; --accent: #1a73e8; --border: #dcdfe6; --text: #303133; --danger: #f56c6c; --warning: #e6a23c; }
         body { font-family: "Segoe UI", Tahoma, sans-serif; background: #f5f7fa; margin: 0; padding: 20px; color: var(--text); }
         .container { max-width: 100%; margin: 0 auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); padding: 20px; min-height: 90vh; display: flex; flex-direction: column; }
-        
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #ebeef5; }
         .title-group h2 { margin: 0; color: var(--primary); font-size: 22px; }
         .stats-badge { background: #ecf5ff; color: #409eff; padding: 4px 12px; border-radius: 20px; font-size: 13px; margin-left: 10px; border: 1px solid #d9ecff; }
-        
         .btn { padding: 8px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; border: 1px solid #dcdfe6; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; }
         .btn-primary { background: var(--accent); color: white; border: none; }
         .btn-success { background: #67c23a; color: white; border: none; }
+        .btn-warning { background: var(--warning); color: white; border: none; }
         .btn-config { background: #909399; color: white; border: none; }
         .btn-danger { background: var(--danger); color: white; border: none; padding: 4px 8px; line-height: 1; }
-
         .table-wrapper { flex: 1; overflow: auto; border: 1px solid var(--border); border-radius: 4px; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 1500px; }
-        
         th { background: #f8f9fb; padding: 0; border-right: 1px solid var(--border); border-bottom: 2px solid var(--border); position: sticky; top: 0; z-index: 20; user-select: none; }
         .th-inner { display: flex; align-items: center; justify-content: space-between; padding: 12px 8px; cursor: move; }
         .th-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; font-size: 13px; font-weight: bold; }
-        
         .filter-trigger { cursor: pointer; padding: 4px; color: #c0c4cc; border-radius: 3px; }
         .filter-trigger.active { color: var(--accent); }
-
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; z-index: 3000; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 25px; border-radius: 8px; width: 450px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); max-height: 80vh; display: flex; flex-direction: column; }
         .config-scroll { overflow-y: auto; flex: 1; margin: 15px 0; }
         .config-item { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
         .config-item input { padding: 8px; border: 1px solid var(--border); border-radius: 4px; flex: 1; font-size: 13px; }
-
         .filter-popover { position: fixed; background: white; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 4px; z-index: 2000; width: 240px; display: none; padding: 12px; }
         .search-box { width: 100%; box-sizing: border-box; padding: 8px; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 4px; }
         .check-list { max-height: 250px; overflow-y: auto; list-style: none; padding: 0; margin: 10px 0; border-top: 1px solid #eee; }
         .check-list li { padding: 6px 0; display: flex; align-items: center; font-size: 13px; }
         .check-list input { margin-right: 10px; }
-
         .dragging { opacity: 0.4; background: #e8f0fe !important; }
         .drag-over { border-left: 3px solid var(--accent) !important; }
-
         tbody td { padding: 10px 8px; border-bottom: 1px solid #ebeef5; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         tr:hover { background: #f5f7fa; }
         .tag-bonus { background: #fdf6ec; color: #e6a23c; padding: 2px 6px; border-radius: 4px; font-weight: bold; border: 1px solid #faecd8; }
@@ -60,6 +52,7 @@
         <div class="btn-group">
             <button class="btn btn-config" onclick="openConfigModal()">⚙️ Points 配置</button>
             <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">📁 导入 PDF</button>
+            <button class="btn btn-warning" onclick="resetFilters()">🔄 重置筛选</button>
             <button class="btn btn-success" onclick="exportToExcel()">📊 导出 Excel</button>
             <input type="file" id="file-input" multiple accept=".pdf" style="display:none">
         </div>
@@ -91,7 +84,7 @@
 <div id="config-modal" class="modal-overlay">
     <div class="modal-content">
         <h3 style="margin-bottom:5px;">Points 对应设置</h3>
-        <p style="font-size: 11px; color: #666; margin-bottom: 10px;">根据 Offer Code 后缀匹配 Points。</p>
+        <p style="font-size: 11px; color: #666; margin-bottom: 10px;">根据后缀匹配 Points 分数。</p>
         <div class="config-scroll" id="config-list"></div>
         <button class="btn" style="width: 100%; border-style: dashed; margin-bottom:10px;" onclick="addConfigRow()">+ 添加新规则</button>
         <div style="display: flex; justify-content: space-between; gap: 8px;">
@@ -110,7 +103,7 @@
     <ul class="check-list" id="popover-list"></ul>
     <div class="popover-footer">
         <button class="btn" onclick="closeFilter()">取消</button>
-        <button class="btn btn-primary" onclick="applyCurrentFilter()">应用</button>
+        <button class="btn btn-primary" onclick="applyCurrentFilter()">确认</button>
     </div>
 </div>
 
@@ -123,8 +116,8 @@
     let currentFilters = {}; 
     let sortState = { field: '', asc: true };
 
-    const ORDER_KEY = 'royal_col_order_v6';
-    const POINTS_KEY = 'royal_points_map_v6';
+    const ORDER_KEY = 'royal_col_order_v8';
+    const POINTS_KEY = 'royal_points_map_v8';
 
     const DEFAULT_POINTS = {
         'VIP2': '40000', '01': '25000', '02': '15000', '02A': '9000',
@@ -149,6 +142,13 @@
             Array.from(headerRow.children).forEach(th => thMap[th.dataset.field] = th);
             order.forEach(field => { if (thMap[field]) headerRow.appendChild(thMap[field]); });
         }
+    }
+
+    // --- Reset Function ---
+    function resetFilters() {
+        currentFilters = {};
+        document.querySelectorAll('.filter-trigger').forEach(t => t.classList.remove('active'));
+        runFilters();
     }
 
     // --- Config Logic ---
@@ -197,7 +197,72 @@
 
     function toggleConfigModal(show) { document.getElementById('config-modal').style.display = show ? 'flex' : 'none'; }
 
-    // --- Core Filtering Logic (Optimized for Cascading) ---
+    // --- PDF Processing ---
+    document.getElementById('file-input').addEventListener('change', async (e) => {
+        const files = e.target.files;
+        if (!files.length) return;
+        allRecords = [];
+        document.getElementById('table-body').innerHTML = `<tr><td colspan="10" style="text-align:center; padding:100px;">正在提取数据，请稍后...</td></tr>`;
+        for (let file of files) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const text = (await page.getTextContent()).items.map(item => item.str).join(" ");
+                parseText(text);
+            }
+        }
+        filteredRecords = [...allRecords];
+        updateTable();
+    });
+
+    function parseText(text) {
+        const regex = /([A-Z0-9]{5,})\s+([\w\s®\-]+?)\s+([A-Z][\w\s,]+?)\s+([A-Z][a-z]+\s\d{1,2},\s\d{4})/g;
+        let m;
+        while ((m = regex.exec(text)) !== null) {
+            const block = text.substring(m.index, m.index + 500);
+            
+            // 1. Offer Type 规范化
+            const guestsMatch = block.match(/Cruise Fare For\s+(\d+)\s+Guest/i);
+            let offerType = "N/A";
+            if (guestsMatch) {
+                const count = guestsMatch[1];
+                offerType = `Cruise Fare For ${count} Guest${count > 1 ? 's' : ''}`;
+            }
+
+            // 2. Itinerary 深度清洗
+            let rawItinerary = block.split(m[4])[1]?.split("Cruise")[0] || "Details";
+            let cleanedItinerary = rawItinerary.replace(/(Interior|Oceanview|Balcony|Suite)\s*-\s*GTY.*/gi, "").trim();
+            cleanedItinerary = cleanedItinerary.replace(/Cruise Fare For.*/gi, "").trim();
+
+            const roomMatch = block.match(/(Interior|Oceanview|Balcony|Suite)\s*-\s*GTY/i);
+            const bonusMatch = block.match(/\$(\d+)\s*FreePlay/i);
+            const d = new Date(m[4]);
+            if(isNaN(d.getTime())) continue;
+
+            allRecords.push({
+                offer: m[1], points: getPointsValue(m[1]), ship: m[2].replace('®','').trim(),
+                port: m[3].trim(), dateStr: m[4], dateValue: d.getTime(),
+                month: d.toLocaleString('en-US', { month: 'long', year: 'numeric' }),
+                itinerary: cleanedItinerary || "Details",
+                bonus: bonusMatch ? bonusMatch[0] : "-", room: roomMatch ? roomMatch[0] : "Other",
+                offerType: offerType
+            });
+        }
+    }
+
+    function updateTable() {
+        const tbody = document.getElementById('table-body');
+        const fields = Array.from(document.querySelectorAll('#header-row th')).map(th => th.dataset.field);
+        if (filteredRecords.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="${fields.length}" style="text-align:center; padding:50px;">无匹配数据</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = filteredRecords.map(item => `<tr>${fields.map(f => `<td>${f==='bonus'&&item[f]!='-' ? `<span class="tag-bonus">${item[f]}</span>` : item[f]}</td>`).join('')}</tr>`).join('');
+        document.getElementById('record-count').innerText = `${filteredRecords.length} 条记录`;
+    }
+
+    // --- Cascading Filter Logic ---
     function openFilter(e, field) {
         e.stopPropagation();
         activeFilterField = field;
@@ -207,9 +272,6 @@
         pop.style.left = Math.min(r.left, window.innerWidth - 260) + 'px';
         pop.style.top = (r.bottom + window.scrollY + 5) + 'px';
 
-        // 这里是优化核心：
-        // 1. 如果该列没有被筛选，显示当前【已筛选结果】中出现的选项
-        // 2. 如果该列已经被筛选了，显示【如果撤销这一列筛选后】会出现的选项（方便用户改选）
         let sourceForOptions = [];
         if (!currentFilters[field]) {
             sourceForOptions = filteredRecords.length > 0 ? filteredRecords : allRecords;
@@ -229,75 +291,18 @@
     function applyCurrentFilter() {
         const checked = Array.from(document.querySelectorAll('#popover-list input:checked')).map(i => i.value);
         const allInList = Array.from(document.querySelectorAll('#popover-list input')).map(i => i.value);
-        
         if (checked.length === allInList.length) delete currentFilters[activeFilterField];
         else currentFilters[activeFilterField] = checked;
-
         document.querySelectorAll('.filter-trigger').forEach(t => {
-            const f = t.closest('th').dataset.field;
-            t.classList.toggle('active', !!currentFilters[f]);
+            t.classList.toggle('active', !!currentFilters[t.closest('th').dataset.field]);
         });
-
         runFilters();
         closeFilter();
     }
 
     function runFilters() {
-        filteredRecords = allRecords.filter(r => 
-            Object.keys(currentFilters).every(f => currentFilters[f].includes(r[f]))
-        );
+        filteredRecords = allRecords.filter(r => Object.keys(currentFilters).every(f => currentFilters[f].includes(r[f])));
         updateTable();
-    }
-
-    // --- Rest of the functionality ---
-    document.getElementById('file-input').addEventListener('change', async (e) => {
-        const files = e.target.files;
-        if (!files.length) return;
-        allRecords = [];
-        document.getElementById('table-body').innerHTML = `<tr><td colspan="10" style="text-align:center; padding:100px;">正在解析 PDF...</td></tr>`;
-        for (let file of files) {
-            const arrayBuffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const text = (await page.getTextContent()).items.map(item => item.str).join(" ");
-                parseText(text);
-            }
-        }
-        filteredRecords = [...allRecords];
-        updateTable();
-    });
-
-    function parseText(text) {
-        const regex = /([A-Z0-9]{5,})\s+([\w\s®\-]+?)\s+([A-Z][\w\s,]+?)\s+([A-Z][a-z]+\s\d{1,2},\s\d{4})/g;
-        let m;
-        while ((m = regex.exec(text)) !== null) {
-            const block = text.substring(m.index, m.index + 450);
-            const guests = block.match(/Cruise Fare For\s+(\d+)\s+Guest/i);
-            const room = block.match(/(Interior|Oceanview|Balcony|Suite)\s*-\s*GTY/i);
-            const bonus = block.match(/\$(\d+)\s*FreePlay/i);
-            const d = new Date(m[4]);
-            if(isNaN(d.getTime())) continue;
-            allRecords.push({
-                offer: m[1], points: getPointsValue(m[1]), ship: m[2].replace('®','').trim(),
-                port: m[3].trim(), dateStr: m[4], dateValue: d.getTime(),
-                month: d.toLocaleString('en-US', { month: 'long', year: 'numeric' }),
-                itinerary: block.split(m[4])[1]?.split("Cruise")[0].trim() || "详情",
-                bonus: bonus ? bonus[0] : "-", room: room ? room[0] : "Other",
-                offerType: guests ? `Fare For ${guests[1]} Guest${guests[1]>1?'s':''}` : "N/A"
-            });
-        }
-    }
-
-    function updateTable() {
-        const tbody = document.getElementById('table-body');
-        const fields = Array.from(document.querySelectorAll('#header-row th')).map(th => th.dataset.field);
-        if (filteredRecords.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="${fields.length}" style="text-align:center; padding:50px;">暂无匹配数据</td></tr>`;
-            return;
-        }
-        tbody.innerHTML = filteredRecords.map(item => `<tr>${fields.map(f => `<td>${f==='bonus'&&item[f]!='-' ? `<span class="tag-bonus">${item[f]}</span>` : item[f]}</td>`).join('')}</tr>`).join('');
-        document.getElementById('record-count').innerText = `${filteredRecords.length} 条记录`;
     }
 
     function doSort(field) {
