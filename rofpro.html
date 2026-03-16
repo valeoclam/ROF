@@ -1,1 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Royal PDF 批量下载助手 - 极速静默版</title>
+    <style>
+        :root { --primary: #003399; --accent: #1a73e8; --success: #34a853; --warning: #fbbc05; }
+        body { font-family: "Segoe UI", sans-serif; padding: 30px; background: #f0f2f5; color: #333; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 850px; margin: 0 auto; }
+        h2 { color: var(--primary); margin: 0 0 20px 0; border-bottom: 2px solid var(--primary); padding-bottom: 10px; }
+        
+        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .section { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef; }
+        label { display: block; font-weight: bold; margin-bottom: 10px; font-size: 14px; color: #555; }
+        
+        select, input[type="checkbox"] { cursor: pointer; }
+        select { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; }
+        
+        .suffix-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-top: 10px; }
+        .tag-item { display: flex; align-items: center; gap: 5px; font-size: 13px; background: #fff; padding: 5px; border-radius: 4px; border: 1px solid #eee; }
+        
+        .btn-group { margin-top: 25px; display: flex; gap: 15px; }
+        button { flex: 1; padding: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px; transition: 0.2s; }
+        .btn-download { background: var(--accent); color: white; }
+        .btn-download:hover { background: #1557b0; box-shadow: 0 4px 8px rgba(26,115,232,0.3); }
+        .btn-clear { background: #909399; color: white; flex: 0.3; }
 
+        #status-area { margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px; }
+        .log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        #log { background: #2c3e50; color: #ecf0f1; padding: 15px; border-radius: 6px; font-family: 'Consolas', monospace; font-size: 12px; height: 250px; overflow-y: auto; line-height: 1.5; }
+        .log-entry { margin-bottom: 4px; border-left: 3px solid #95a5a6; padding-left: 8px; }
+        .log-success { border-color: var(--success); color: #a2f9b1; }
+        .log-skip { border-color: var(--warning); color: #f9e79f; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Royal PDF 批量下载助手</h2>
+    
+    <div class="config-grid">
+        <div class="section">
+            <label>1. 时间设置</label>
+            <div style="display: flex; gap: 10px;">
+                <select id="year"></select>
+                <select id="month"></select>
+            </div>
+            <div style="margin-top: 15px;">
+                <label>2. 类别选择</label>
+                <input type="checkbox" id="typeA" checked> A类 (Standard)
+                <input type="checkbox" id="typeC" style="margin-left: 15px;"> C类 (Club)
+            </div>
+        </div>
+        
+        <div class="section">
+            <label>3. 后缀/分数等级</label>
+            <div class="suffix-container" id="suffix-list"></div>
+        </div>
+    </div>
+
+    <div class="btn-group">
+        <button class="btn-download" onclick="handleBatchDownload()">🚀 开始静默下载 (过滤重复)</button>
+        <button class="btn-clear" onclick="clearHistory()">重置下载记录</button>
+    </div>
+
+    <div id="status-area">
+        <div class="log-header">
+            <strong>运行日志:</strong>
+            <span id="counter" style="font-size: 12px; color: #666;">等待指令...</span>
+        </div>
+        <div id="log">请选择选项并点击开始下载。</div>
+    </div>
+</div>
+
+<script>
+    const suffixes = ['01', '02', '02A', '03', '03A', '04', '05', '06', '07', '08', '09', '10', 'VIP2'];
+    // 使用 Set 存储已下载的文件名，防止重复
+    let downloadHistory = new Set(JSON.parse(localStorage.getItem('royal_download_history') || '[]'));
+
+    // 初始化界面
+    window.onload = () => {
+        const yr = document.getElementById('year'), mo = document.getElementById('month');
+        for(let i=25; i<=27; i++) yr.add(new Option(`20${i}年`, i));
+        for(let i=1; i<=12; i++) mo.add(new Option(`${i}月`, i.toString().padStart(2, '0')));
+        yr.value = "26"; mo.value = "03";
+
+        const container = document.getElementById('suffix-list');
+        suffixes.forEach(s => {
+            container.innerHTML += `<div class="tag-item"><input type="checkbox" value="${s}" ${s==='06'?'checked':''}> ${s}</div>`;
+        });
+        updateCounter();
+    };
+
+    function updateCounter() {
+        document.getElementById('counter').innerText = `已记录历史下载: ${downloadHistory.size} 个文件`;
+    }
+
+    function clearHistory() {
+        if(confirm("确定要清空下载记录吗？清空后再次点击下载会重新保存已有的文件。")) {
+            downloadHistory.clear();
+            localStorage.removeItem('royal_download_history');
+            updateCounter();
+            addLog("下载记录已清空", "skip");
+        }
+    }
+
+    function addLog(msg, type = '') {
+        const log = document.getElementById('log');
+        if (log.innerText === "请选择选项并点击开始下载。") log.innerHTML = "";
+        const div = document.createElement('div');
+        div.className = 'log-entry' + (type === 'success' ? ' log-success' : type === 'skip' ? ' log-skip' : '');
+        div.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        log.appendChild(div);
+        log.scrollTop = log.scrollHeight;
+    }
+
+    // 核心下载逻辑
+    async function downloadFile(name, url) {
+        // 1. 重复检查
+        if (downloadHistory.has(name)) {
+            addLog(`跳过: ${name} (历史记录已存在)`, "skip");
+            return false;
+        }
+
+        try {
+            // 2. 创建一个隐藏的 a 标签
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = name; // 指定下载文件名
+            
+            // 3. 强制触发浏览器“下载”线程而非“预览”线程
+            // 注意：跨域情况下 download 属性可能在某些浏览器失效，但配合点击动作依然是目前最静默的方案
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // 4. 更新记录
+            downloadHistory.add(name);
+            localStorage.setItem('royal_download_history', JSON.stringify([...downloadHistory]));
+            updateCounter();
+            addLog(`已触发下载: ${name}`, "success");
+            return true;
+        } catch (e) {
+            addLog(`出错: ${name} - ${e.message}`);
+            return false;
+        }
+    }
+
+    async function handleBatchDownload() {
+        const yr = document.getElementById('year').value;
+        const mo = document.getElementById('month').value;
+        const types = [];
+        if(document.getElementById('typeA').checked) types.push('A');
+        if(document.getElementById('typeC').checked) types.push('C');
+        const selectedSuffixes = Array.from(document.querySelectorAll('#suffix-list input:checked')).map(i => i.value);
+        
+        if (!selectedSuffixes.length || !types.length) return alert("请至少选择一个类别和后缀！");
+
+        const baseUrl = "https://www.royalcaribbean.com/content/dam/royal/resources/pdf/casino/offers/";
+        let queue = [];
+
+        types.forEach(t => {
+            selectedSuffixes.forEach(s => {
+                let fileName = (s === 'A' && t === 'A') ? `${yr}${mo}A.pdf` : `${yr}${mo}${t}${s}.pdf`;
+                queue.push({ name: fileName, url: baseUrl + fileName });
+            });
+        });
+
+        addLog(`开始任务，准备处理 ${queue.length} 个文件...`);
+
+        for (const item of queue) {
+            await downloadFile(item.name, item.url);
+            // 适当延时，增加稳定性并给浏览器处理时间
+            await new Promise(r => setTimeout(r, 600));
+        }
+
+        addLog("所有选定任务处理完毕。");
+    }
+</script>
+</body>
+</html>
