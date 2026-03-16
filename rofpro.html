@@ -261,7 +261,7 @@
                 if(isNaN(d.getTime())) continue;
 
                 const bonus = block.match(/\$(\d+)\s*FreePlay/i);
-                const room = block.match(/(Interior|Oceanview|Balcony|Suite)\s*-\s*GTY/i);
+                const room = block.match(/(Interior|Oceanview|Balcony|Suite|Grand Suite|Junior Suite)(\s*-\s*GTY)?/i);
                 const guests = block.match(/Cruise Fare For\s+(\d+)\s+Guest/i);
                 let cleanedItinerary = (block.split(m[4])[1]?.split("Cruise")[0] || "Details")
                     .replace(/(Interior|Oceanview|Balcony|Suite)\s*-\s*GTY.*/gi, "").trim();
