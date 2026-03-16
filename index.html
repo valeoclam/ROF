@@ -235,7 +235,7 @@
             let cleanedItinerary = rawItinerary.replace(/(Interior|Oceanview|Balcony|Suite)\s*-\s*GTY.*/gi, "").trim();
             cleanedItinerary = cleanedItinerary.replace(/Cruise Fare For.*/gi, "").trim();
 
-            const roomMatch = block.match(/(Interior|Oceanview|Balcony|Suite)\s*-\s*GTY/i);
+            const roomMatch = block.match(/(Interior|Oceanview|Balcony|Suite|Grand Suite|Junior Suite)(\s*-\s*GTY)?/i);
             const bonusMatch = block.match(/\$(\d+)\s*FreePlay/i);
             const d = new Date(m[4]);
             if(isNaN(d.getTime())) continue;
