@@ -179,7 +179,6 @@
         setLog("筛选条件已重置");
     }
 
-    // 需求1: 查看PDF逻辑
     function viewPdfs() {
         const yr = document.getElementById('dl-year').value, mo = document.getElementById('dl-month').value;
         const types = [];
@@ -222,7 +221,6 @@
         input.value = "";
     }
 
-    // 需求2: 另存后运行 & 兼容性检测
     async function runMainFlow() {
         if (typeof window.showDirectoryPicker !== 'function') {
             alert("⚠️ 您的系统或浏览器（如 iPhone Safari）暂不支持直接访问文件夹。\n\n请先点击【👁️ 查看 PDF】并在浏览器中手动存储文件，然后再点击【📂 导入 PDF】进行解析。");
@@ -278,7 +276,6 @@
                 if(isNaN(d.getTime())) continue;
 
                 const bonus = block.match(/\$(\d+)\s*FreePlay/i);
-                // 修复 Stateroom 解析逻辑
                 const room = block.match(/(Interior|Oceanview|Balcony|Suite|Grand Suite|Junior Suite)(\s*-\s*GTY)?/i);
                 const guests = block.match(/Cruise Fare For\s+(\d+)\s+Guest/i);
                 let cleanedItinerary = (block.split(m[4])[1]?.split("Cruise")[0] || "Details")
@@ -316,9 +313,18 @@
         pop.style.display = 'block';
         pop.style.left = Math.min(r.left, window.innerWidth - 260) + 'px';
         pop.style.top = (r.bottom + window.scrollY + 5) + 'px';
+        
         const availableVals = [...new Set(allRecords.filter(r => 
             Object.keys(currentFilters).every(k => k === f || currentFilters[k].includes(r[k]))
-        ).map(x => x[f]))].sort();
+        ).map(x => x[f]))];
+
+        // 核心修改点：针对 Month 和 Sail Date 进行日期升序排列
+        if (f === 'month' || f === 'dateStr') {
+            availableVals.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+        } else {
+            availableVals.sort();
+        }
+
         document.getElementById('popover-list').innerHTML = availableVals.map(v => `
             <li><label style="display:flex;align-items:center;padding:4px 0;cursor:pointer">
                 <input type="checkbox" value="${v}" ${(!currentFilters[f] || currentFilters[f].includes(v)) ? 'checked' : ''}>
