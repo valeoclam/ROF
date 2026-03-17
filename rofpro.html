@@ -9,29 +9,20 @@
         :root { --primary: #003399; --accent: #1a73e8; --border: #dcdfe6; --text: #303133; --danger: #f56c6c; --warning: #e6a23c; --success: #67c23a; }
         body { font-family: "Segoe UI", Tahoma, sans-serif; background: #f5f7fa; margin: 0; padding: 20px; color: var(--text); }
         .container { max-width: 100%; margin: 0 auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); padding: 20px; min-height: 90vh; display: flex; flex-direction: column; }
-        
-        /* 页面标题样式 */
         .page-title { font-size: 20px; font-weight: bold; color: var(--primary); margin-bottom: 15px; display: block; }
-
-        /* 配置面板 */
         .header-panel { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ebeef5; margin-bottom: 20px; }
         .config-row { display: flex; gap: 20px; align-items: flex-start; margin-bottom: 12px; }
         .config-item { display: flex; flex-direction: column; gap: 5px; }
         .config-item label { font-size: 13px; font-weight: bold; color: #606266; }
-        
         .suffix-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; background: #fff; padding: 10px; border: 1px solid #ddd; border-radius: 4px; max-width: 850px; }
         .tag-checkbox { display: flex; align-items: center; gap: 5px; font-size: 12px; cursor: pointer; }
-
         .status-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-top: 1px solid #eee; margin-top: 10px; }
         .stats-badge { background: #ecf5ff; color: #409eff; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; border: 1px solid #d9ecff; }
-
         .btn { padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; border: 1px solid #dcdfe6; transition: 0.2s; background: #fff; }
         .btn-primary { background: var(--accent); color: white; border: none; }
         .btn-success { background: var(--success); color: white; border: none; }
         .btn-warning { background: var(--warning); color: white; border: none; }
         .btn-link { background: none; color: var(--accent); border: none; padding: 0; font-size: 12px; text-decoration: underline; cursor: pointer; }
-
-        /* 表格样式 */
         .table-wrapper { flex: 1; overflow: auto; border: 1px solid var(--border); border-radius: 4px; background: white; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 1400px; }
         th { background: #f8f9fb; border-right: 1px solid var(--border); border-bottom: 2px solid var(--border); position: sticky; top: 0; z-index: 20; }
@@ -41,11 +32,9 @@
         .filter-trigger.active { color: var(--accent); }
         td { padding: 10px 8px; border-bottom: 1px solid #ebeef5; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .tag-bonus { background: #fdf6ec; color: #e6a23c; padding: 2px 5px; border-radius: 4px; border: 1px solid #faecd8; }
-
         .modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; z-index:3000; justify-content:center; align-items:center; }
         .filter-popover { position: fixed; background: white; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 4px; z-index: 2000; width: 240px; display: none; padding: 12px; }
         .popover-op { font-size: 12px; margin-bottom: 8px; display: flex; gap: 10px; }
-        
         #log-text { font-family: monospace; font-size: 11px; color: #666; }
     </style>
 </head>
@@ -84,12 +73,15 @@
                 <div id="log-text">准备就绪</div>
             </div>
             <div style="display:flex; gap:10px; align-items: center;">
+                <button class="btn" style="background:#e6a23c; color:white; border:none;" onclick="viewPdfs()">👁️ 查看 PDF</button>
+
                 <button class="btn" style="background:#67c23a; color:white; border:none;" onclick="document.getElementById('manual-pdf').click()">📂 导入 PDF</button>
                 <input type="file" id="manual-pdf" style="display:none" accept=".pdf" multiple onchange="handleManualImport(this)">
                 
                 <button class="btn btn-warning" onclick="resetFilters()">🔄 重置筛选</button>
 
-                <button class="btn btn-primary" onclick="runMainFlow()">🚀 指定文件夹并运行</button>
+                <button class="btn btn-primary" onclick="runMainFlow()">🚀 另存后运行</button>
+
                 <button class="btn" onclick="openConfigModal()">⚙️ Points 配置</button>
                 <button class="btn btn-success" onclick="exportToExcel()">📊 导出 Excel</button>
                 <button class="btn" style="color:var(--danger)" onclick="clearAllData()">🗑️ 清空记录</button>
@@ -114,7 +106,7 @@
                 </tr>
             </thead>
             <tbody id="table-body">
-                <tr><td colspan="10" style="text-align:center; padding:100px; color:#999">点击“指定文件夹并运行”或“导入 PDF”开始</td></tr>
+                <tr><td colspan="10" style="text-align:center; padding:100px; color:#999">点击“另存后运行”或“导入 PDF”开始</td></tr>
             </tbody>
         </table>
     </div>
@@ -150,7 +142,7 @@
 </div>
 
 <script>
-    // --- 核心变量 ---
+    const PDF_BASE_URL = "https://www.royalcaribbean.com/content/dam/royal/resources/pdf/casino/offers/";
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
     let allRecords = [], filteredRecords = [], currentFilters = {}, sortState = { field: '', asc: true };
     let activeF = '';
@@ -179,7 +171,6 @@
     function toggleAllSuffixes(c) { document.querySelectorAll('#suffix-selector input').forEach(i=>i.checked=c); }
     function setLog(m) { document.getElementById('log-text').innerText = m; }
 
-    // --- 需求2: 重置筛选函数 ---
     function resetFilters() {
         currentFilters = {};
         document.querySelectorAll('.filter-trigger').forEach(t => t.classList.remove('active'));
@@ -188,14 +179,36 @@
         setLog("筛选条件已重置");
     }
 
-    // --- 需求3: 手动导入 PDF 函数 ---
+    // 需求1: 查看PDF逻辑
+    function viewPdfs() {
+        const yr = document.getElementById('dl-year').value, mo = document.getElementById('dl-month').value;
+        const types = [];
+        if(document.getElementById('dl-typeA').checked) types.push('A');
+        if(document.getElementById('dl-typeC').checked) types.push('C');
+        const selected = Array.from(document.querySelectorAll('#suffix-selector input:checked')).map(i=>i.value);
+
+        if(!types.length || !selected.length) return alert("请选择类别和分数等级！");
+
+        const targetUrls = [];
+        types.forEach(t => {
+            selected.forEach(s => {
+                let name = (s==='A'&&t==='A') ? `${yr}${mo}A.pdf` : `${yr}${mo}${t}${s}.pdf`;
+                targetUrls.push(PDF_BASE_URL + name);
+            });
+        });
+
+        if(targetUrls.length > 1) {
+            if(!confirm(`即将依次打开 ${targetUrls.length} 个 PDF 文件。\n\n提示：iPhone/Mac Safari 用户请确保已允许弹窗权限，并在查看后分别【存储/另存为】到本地，再使用【导入 PDF】功能。`)) return;
+        }
+
+        targetUrls.forEach(url => window.open(url, '_blank'));
+        setLog(`已尝试打开 ${targetUrls.length} 个文件`);
+    }
+
     async function handleManualImport(input) {
         if (!input.files || input.files.length === 0) return;
-        
-        // 按照要求，手动导入时清空已有记录
         clearAllData();
         setLog(`正在解析手动导入的 ${input.files.length} 个文件...`);
-
         for (const file of input.files) {
             try {
                 await parsePdfContent(file);
@@ -206,11 +219,16 @@
         }
         filteredRecords = [...allRecords];
         updateTable();
-        input.value = ""; // 重置 input
+        input.value = "";
     }
 
-    // --- 原始业务逻辑 (保持 100% 相同) ---
+    // 需求2: 另存后运行 & 兼容性检测
     async function runMainFlow() {
+        if (typeof window.showDirectoryPicker !== 'function') {
+            alert("⚠️ 您的系统或浏览器（如 iPhone Safari）暂不支持直接访问文件夹。\n\n请先点击【👁️ 查看 PDF】并在浏览器中手动存储文件，然后再点击【📂 导入 PDF】进行解析。");
+            return;
+        }
+
         const yr = document.getElementById('dl-year').value, mo = document.getElementById('dl-month').value;
         const types = [];
         if(document.getElementById('dl-typeA').checked) types.push('A');
@@ -224,13 +242,12 @@
 
         allRecords = [];
         setLog("正在下载并解析 PDF...");
-        const baseUrl = "https://www.royalcaribbean.com/content/dam/royal/resources/pdf/casino/offers/";
 
         for (let t of types) {
             for (let s of selected) {
                 let name = (s==='A'&&t==='A') ? `${yr}${mo}A.pdf` : `${yr}${mo}${t}${s}.pdf`;
                 try {
-                    const res = await fetch(baseUrl + name);
+                    const res = await fetch(PDF_BASE_URL + name);
                     if(!res.ok) continue;
                     const blob = await res.blob();
                     const fileHandle = await dirHandle.getFileHandle(name, {create:true});
@@ -261,10 +278,11 @@
                 if(isNaN(d.getTime())) continue;
 
                 const bonus = block.match(/\$(\d+)\s*FreePlay/i);
+                // 修复 Stateroom 解析逻辑
                 const room = block.match(/(Interior|Oceanview|Balcony|Suite|Grand Suite|Junior Suite)(\s*-\s*GTY)?/i);
                 const guests = block.match(/Cruise Fare For\s+(\d+)\s+Guest/i);
                 let cleanedItinerary = (block.split(m[4])[1]?.split("Cruise")[0] || "Details")
-                    .replace(/(Interior|Oceanview|Balcony|Suite)\s*-\s*GTY.*/gi, "").trim();
+                    .replace(/(Interior|Oceanview|Balcony|Suite|Grand Suite|Junior Suite)(\s*-\s*GTY)?/gi, "").trim();
 
                 allRecords.push({
                     offer: m[1],
