@@ -179,6 +179,7 @@
         setLog("筛选条件已重置");
     }
 
+    // 需求1: 查看PDF逻辑
     function viewPdfs() {
         const yr = document.getElementById('dl-year').value, mo = document.getElementById('dl-month').value;
         const types = [];
@@ -221,6 +222,7 @@
         input.value = "";
     }
 
+    // 需求2: 另存后运行 & 兼容性检测
     async function runMainFlow() {
         if (typeof window.showDirectoryPicker !== 'function') {
             alert("⚠️ 您的系统或浏览器（如 iPhone Safari）暂不支持直接访问文件夹。\n\n请先点击【👁️ 查看 PDF】并在浏览器中手动存储文件，然后再点击【📂 导入 PDF】进行解析。");
@@ -276,6 +278,7 @@
                 if(isNaN(d.getTime())) continue;
 
                 const bonus = block.match(/\$(\d+)\s*FreePlay/i);
+                // 修复 Stateroom 解析逻辑
                 const room = block.match(/(Interior|Oceanview|Balcony|Suite|Grand Suite|Junior Suite)(\s*-\s*GTY)?/i);
                 const guests = block.match(/Cruise Fare For\s+(\d+)\s+Guest/i);
                 let cleanedItinerary = (block.split(m[4])[1]?.split("Cruise")[0] || "Details")
@@ -313,18 +316,30 @@
         pop.style.display = 'block';
         pop.style.left = Math.min(r.left, window.innerWidth - 260) + 'px';
         pop.style.top = (r.bottom + window.scrollY + 5) + 'px';
-        
+        // 1. 获取联动后的唯一值列表
         const availableVals = [...new Set(allRecords.filter(r => 
             Object.keys(currentFilters).every(k => k === f || currentFilters[k].includes(r[k]))
         ).map(x => x[f]))];
 
-        // 核心修改点：针对 Month 和 Sail Date 进行日期升序排列
+        // 2. 核心修复：针对不同字段进行排序优化
         if (f === 'month' || f === 'dateStr') {
+            // Month 和 Sail Date：按日期时间戳升序
             availableVals.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+        } else if (f === 'points') {
+            // Points：按数值大小升序排列
+            availableVals.sort((a, b) => {
+                const numA = parseInt(a) || 0;
+                const numB = parseInt(b) || 0;
+                return numA - numB;
+            });
         } else {
-            availableVals.sort();
+            // 其他字段：按字母/自然顺序排序 (处理数字更智能)
+            availableVals.sort((a, b) => 
+                String(a).localeCompare(String(b), undefined, {numeric: true, sensitivity: 'base'})
+            );
         }
 
+        // 3. 渲染到 HTML
         document.getElementById('popover-list').innerHTML = availableVals.map(v => `
             <li><label style="display:flex;align-items:center;padding:4px 0;cursor:pointer">
                 <input type="checkbox" value="${v}" ${(!currentFilters[f] || currentFilters[f].includes(v)) ? 'checked' : ''}>
