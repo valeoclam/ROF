@@ -1,1 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>RoyalOfferDiffPro - 深度对比版</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root { --primary: #003399; --accent: #1a73e8; --border: #dcdfe6; --text: #303133; --danger: #f56c6c; --warning: #e6a23c; --success: #67c23a; }
+        body { font-family: "Segoe UI", Tahoma, sans-serif; background: #f5f7fa; margin: 0; padding: 20px; color: var(--text); }
+        .container { max-width: 100%; margin: 0 auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); padding: 20px; min-height: 90vh; display: flex; flex-direction: column; }
+        .page-title { font-size: 20px; font-weight: bold; color: var(--primary); margin-bottom: 15px; }
+        .ver-tag { font-size: 10px; padding: 2px 4px; border-radius: 3px; margin-right: 5px; font-weight: bold; }
+        .tag-new { background: #e1f3d8; color: #67c23a; border: 1px solid #c2e7b0; }
+        .tag-old { background: #f4f4f5; color: #909399; border: 1px solid #e9e9eb; }
+        .diff-danger-val { color: var(--danger); font-weight: bold; text-decoration: underline; background: #fff1f0; }
+        .diff-info-val { color: var(--accent); font-weight: bold; background: #e6f7ff; }
+        .header-panel { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ebeef5; margin-bottom: 20px; }
+        .status-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-top: 1px solid #eee; margin-top: 10px; }
+        .btn { padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; border: 1px solid #dcdfe6; transition: 0.2s; background: #fff; }
+        .btn-primary { background: var(--accent); color: white; border: none; }
+        .btn-link { background: none; color: var(--accent); border: none; padding: 0; font-size: 12px; text-decoration: underline; cursor: pointer; }
+        .table-wrapper { flex: 1; overflow: auto; border: 1px solid var(--border); border-radius: 4px; background: white; }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 1500px; }
+        th { background: #f8f9fb; border-right: 1px solid var(--border); border-bottom: 2px solid var(--border); position: sticky; top: 0; z-index: 20; }
+        .th-inner { display: flex; align-items: center; justify-content: space-between; padding: 12px 8px; cursor: move; }
+        .th-label { font-size: 13px; font-weight: bold; cursor: pointer; }
+        .filter-trigger { cursor: pointer; color: #c0c4cc; margin-left: 5px; }
+        .filter-trigger.active { color: var(--accent); }
+        td { padding: 10px 8px; border-bottom: 1px solid #ebeef5; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .filter-popover { position: fixed; background: white; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 4px; z-index: 2000; width: 240px; display: none; padding: 12px; }
+        .popover-op { font-size: 12px; margin-bottom: 8px; display: flex; gap: 10px; }
+        .modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; z-index:3000; justify-content:center; align-items:center; }
+    </style>
+</head>
+<body>
 
+<div class="container">
+    <span class="page-title">🚢 RoyalOfferDiffPro - 差异对比版</span>
+
+    <div class="header-panel">
+        <div style="display: flex; gap: 15px; margin-bottom: 15px;">
+            <div style="flex: 1; border: 2px dashed #dcdfe6; padding: 15px; border-radius: 8px; text-align: center;">
+                <p style="margin: 0 0 10px 0; font-weight: bold;">1. 导入旧版本文件</p>
+                <button class="btn" onclick="document.getElementById('old-pdf').click()">📁 选择旧版 PDF</button>
+                <input type="file" id="old-pdf" style="display:none" accept=".pdf" multiple onchange="handleImport(this, 'old')">
+                <div id="old-count" style="margin-top:5px; font-size:12px; color:#909399;">未加载数据</div>
+            </div>
+            <div style="flex: 1; border: 2px dashed #409eff; padding: 15px; border-radius: 8px; text-align: center; background: #f0f7ff;">
+                <p style="margin: 0 0 10px 0; font-weight: bold; color: var(--accent);">2. 导入新版本文件</p>
+                <button class="btn btn-primary" onclick="document.getElementById('new-pdf').click()">📂 选择新版 PDF</button>
+                <input type="file" id="new-pdf" style="display:none" accept=".pdf" multiple onchange="handleImport(this, 'new')">
+                <div id="new-count" style="margin-top:5px; font-size:12px; color:var(--accent);">未加载数据</div>
+            </div>
+        </div>
+        
+        <div class="status-bar">
+            <div id="log-text" style="font-size: 12px; color: #666;">等待导入...</div>
+            <div style="display:flex; gap:10px; align-items: center;">
+                <button class="btn" onclick="openConfigModal()">⚙️ Points 配置</button>
+                <button class="btn btn-warning" onclick="resetFilters()">🔄 重置筛选</button>
+                <button class="btn" style="color:var(--danger)" onclick="location.reload()">🗑️ 全部清空</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-wrapper">
+        <table id="diff-table">
+            <thead>
+                <tr id="header-row">
+                    <th draggable="true" data-field="ver" width="80"><div class="th-inner"><span class="th-label">版本</span></div></th>
+                    <th draggable="true" data-field="ship" width="180"><div class="th-inner"><span class="th-label" onclick="doSort('ship')">Ship</span><span class="filter-trigger" onclick="openFilter(event, 'ship')">▼</span></div></th>
+                    <th draggable="true" data-field="month" width="120"><div class="th-inner"><span class="th-label" onclick="doSort('monthTime')">Month</span><span class="filter-trigger" onclick="openFilter(event, 'month')">▼</span></div></th>
+                    <th draggable="true" data-field="dateStr" width="150"><div class="th-inner"><span class="th-label" onclick="doSort('dateValue')">Sail Date</span><span class="filter-trigger" onclick="openFilter(event, 'dateStr')">▼</span></div></th>
+                    <th draggable="true" data-field="points" width="100"><div class="th-inner"><span class="th-label" onclick="doSort('points')">Points</span><span class="filter-trigger" onclick="openFilter(event, 'points')">▼</span></div></th>
+                    <th draggable="true" data-field="room" width="150"><div class="th-inner"><span class="th-label">Stateroom</span></div></th>
+                    <th draggable="true" data-field="offerType" width="180"><div class="th-inner"><span class="th-label">Offer Type</span></div></th>
+                    <th draggable="true" data-field="itinerary" width="280"><div class="th-inner"><span class="th-label">Itinerary</span></div></th>
+                    <th draggable="true" data-field="offer" width="110"><div class="th-inner"><span class="th-label">Offer Code</span></div></th>
+                </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<div id="filter-popover" class="filter-popover">
+    <input type="text" id="popover-search" style="width:100%; margin-bottom:10px; padding:4px;" placeholder="模糊搜索..." oninput="handlePopoverSearch()">
+    <div class="popover-op">
+        <button class="btn-link" onclick="togglePopoverCheck(true)">全选</button>
+        <span style="color:#ddd">|</span>
+        <button class="btn-link" onclick="togglePopoverCheck(false)">清空</button>
+    </div>
+    <ul id="popover-list" style="list-style:none; padding:0; max-height:220px; overflow-y:auto; border-top:1px solid #eee"></ul>
+    <div style="text-align:right; margin-top:12px; display:flex; gap:8px; justify-content:flex-end">
+        <button class="btn" style="padding:4px 10px" onclick="closeFilter()">取消</button>
+        <button class="btn btn-primary" style="padding:4px 10px" onclick="applyCurrentFilter()">确认</button>
+    </div>
+</div>
+
+<div id="config-modal" class="modal-overlay">
+    <div style="background:white; padding:25px; border-radius:8px; width:420px">
+        <h3 style="margin-top:0">Points 规则设置</h3>
+        <div id="config-list" style="max-height:300px; overflow-y:auto"></div>
+        <button class="btn" style="width:100%; margin-top:10px; border-style:dashed" onclick="addConfigRow()">+ 添加新规则</button>
+        <div style="margin-top:20px; display:flex; justify-content:space-between">
+            <button class="btn" onclick="resetToDefault()">恢复默认</button>
+            <div style="display:flex; gap:10px">
+                <button class="btn" onclick="toggleModal(false)">取消</button>
+                <button class="btn btn-primary" onclick="savePointsConfig()">保存应用</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    let oldData = [], newData = [], combinedData = [], filteredRecords = [], currentFilters = {};
+    let activeF = '', sortState = { field: 'dateValue', asc: true };
+    let pointsMapping = JSON.parse(localStorage.getItem('royal_points_map_v10')) || {
+        'VIP2': '40000', '01': '25000', '02': '15000', '02A': '9000', '03': '6500', '03A': '4000', '04': '3000', '05': '2000', '06': '1500', '07': '1200', '08': '800', '09': '600', '10': '400'
+    };
+
+    window.onload = () => {
+        initDragAndDrop();
+        applySavedColumnOrder();
+    };
+
+    async function handleImport(input, type) {
+        if (!input.files.length) return;
+        setLog(`正在解析${type==='old'?'旧':'新'}版本文件...`);
+        const targetArray = [];
+        for (const file of input.files) await parsePdfToData(file, targetArray);
+        if(type === 'old') oldData = targetArray; else newData = targetArray;
+        document.getElementById(`${type}-count`).innerText = `已解析: ${targetArray.length} 条数据`;
+        processComparison();
+    }
+
+    async function parsePdfToData(file, array) {
+        const buffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument(buffer).promise;
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            const text = content.items.map(it => it.str).join(" ");
+            const regex = /([A-Z0-9]{5,})\s+([\w\s®\-]+?)\s+([A-Z][\w\s,]+?)\s+([A-Z][a-z]+\s\d{1,2},?\s*\d{4})/g;
+            let m;
+            while ((m = regex.exec(text)) !== null) {
+                const block = text.substring(m.index, m.index + 600);
+                const d = new Date(m[4].replace(/,/g, ', '));
+                if(isNaN(d.getTime())) continue;
+                
+                const roomMatch = block.match(/(Interior|Oceanview|Balcony|Suite|Grand Suite|Junior Suite)(\s*-\s*GTY)?/i);
+                const guestsMatch = block.match(/Cruise\s*Fare\s*For\s*(\d+)\s*Guest/i);
+                const offerCode = m[1];
+                let matchedPoints = "N/A";
+                for (let suffix in pointsMapping) if (offerCode.endsWith(suffix)) { matchedPoints = pointsMapping[suffix]; break; }
+                
+                array.push({
+                    id: `${d.getTime()}_${m[2].trim()}_${matchedPoints}`, 
+                    offer: offerCode,
+                    ship: m[2].replace('®','').trim(),
+                    month: d.toLocaleString('en-US', { month: 'short', year: 'numeric' }), // 修复：显示月份和年份
+                    monthTime: new Date(d.getFullYear(), d.getMonth(), 1).getTime(), // 用于内部排序
+                    dateStr: m[4], 
+                    dateValue: d.getTime(),
+                    points: matchedPoints,
+                    room: roomMatch ? roomMatch[1].trim() + (roomMatch[2] || "") : "Other",
+                    offerType: guestsMatch ? `Cruise Fare For ${guestsMatch[1]} Guests` : "N/A",
+                    itinerary: (block.split(m[4])[1]?.split("Cruise")[0] || "Details").replace(/(Interior|Oceanview|Balcony|Suite|Grand Suite|Junior Suite)(\s*-\s*GTY)?/gi, "").trim()
+                });
+            }
+        }
+    }
+
+    function processComparison() {
+        combinedData = [...oldData.map(d => ({...d, ver: 'old'})), ...newData.map(d => ({...d, ver: 'new'}))];
+        combinedData.sort((a,b) => {
+            if(a.dateValue !== b.dateValue) return a.dateValue - b.dateValue;
+            if(a.ship !== b.ship) return a.ship.localeCompare(b.ship);
+            if(a.points !== b.points) return b.points - a.points;
+            return a.ver === 'new' ? -1 : 1; // 修复：新版本显示在旧版本记录的上一条
+        });
+        runFilters();
+        setLog("比对完成。");
+    }
+
+    function updateTable() {
+        const tbody = document.getElementById('table-body');
+        const fields = Array.from(document.querySelectorAll('#header-row th')).map(th => th.dataset.field);
+        if (!filteredRecords.length) {
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:50px">无匹配数据</td></tr>';
+            return;
+        }
+        tbody.innerHTML = filteredRecords.map((row) => {
+            const peer = filteredRecords.find(r => r.id === row.id && r.ver !== row.ver);
+            const isDiffRoom = peer && peer.room !== row.room;
+            const isDiffType = peer && peer.offerType !== row.offerType;
+            return `<tr style="${row.ver === 'old' ? 'background:#f9f9f9; color:#666' : 'background:#fff'}">
+                ${fields.map(f => {
+                    let val = row[f];
+                    if(f === 'ver') return `<td><span class="ver-tag ${row.ver==='new'?'tag-new':'tag-old'}">${row.ver.toUpperCase()}</span></td>`;
+                    if(f === 'room' && isDiffRoom) return `<td class="diff-danger-val">${val}</td>`;
+                    if(f === 'offerType' && isDiffType) return `<td class="diff-info-val">${val}</td>`;
+                    return `<td>${val}</td>`;
+                }).join('')}
+            </tr>`;
+        }).join('');
+    }
+
+    // --- 筛选与排序逻辑修复 ---
+    function openFilter(e, f) {
+        e.stopPropagation(); activeF = f;
+        const pop = document.getElementById('filter-popover');
+        const r = e.target.getBoundingClientRect();
+        pop.style.display = 'block';
+        pop.style.left = Math.min(r.left, window.innerWidth - 260) + 'px';
+        pop.style.top = (r.bottom + window.scrollY + 5) + 'px';
+
+        // 获取唯一值并进行针对性排序
+        let vals;
+        if (f === 'month') {
+            // Month 排序逻辑：按月+年的时间升序
+            vals = [...new Set(combinedData.map(x => x.month))].sort((a, b) => {
+                return new Date(a).getTime() - new Date(b).getTime();
+            });
+        } else if (f === 'dateStr') {
+            // Sail Date 排序逻辑：按时间戳升序
+            vals = [...new Set(combinedData.map(x => x.dateStr))].sort((a, b) => {
+                return new Date(a).getTime() - new Date(b).getTime();
+            });
+        } else {
+            vals = [...new Set(combinedData.map(x => x[f]))].sort((a,b)=> isNaN(a)?a.localeCompare(b):a-b);
+        }
+
+        document.getElementById('popover-list').innerHTML = vals.map(v => `
+            <li><label style="display:flex;align-items:center;padding:4px 0;cursor:pointer">
+                <input type="checkbox" value="${v}" ${(!currentFilters[f] || currentFilters[f].includes(v)) ? 'checked' : ''}>
+                <span style="margin-left:5px">${v}</span>
+            </label></li>
+        `).join('');
+    }
+
+    function handlePopoverSearch() {
+        const t = document.getElementById('popover-search').value.toLowerCase();
+        document.querySelectorAll('#popover-list li').forEach(li => li.style.display = li.innerText.toLowerCase().includes(t) ? 'flex' : 'none');
+    }
+
+    function togglePopoverCheck(s) { document.querySelectorAll('#popover-list li').forEach(li => { if(li.style.display !== 'none') li.querySelector('input').checked = s; }); }
+
+    function applyCurrentFilter() {
+        const checked = Array.from(document.querySelectorAll('#popover-list input:checked')).map(i => i.value);
+        if (checked.length === document.querySelectorAll('#popover-list input').length) delete currentFilters[activeF];
+        else currentFilters[activeF] = checked;
+        document.querySelectorAll('.filter-trigger').forEach(t => t.classList.toggle('active', !!currentFilters[t.closest('th').dataset.field]));
+        runFilters();
+        closeFilter();
+    }
+
+    function runFilters() {
+        filteredRecords = combinedData.filter(r => Object.keys(currentFilters).every(k => currentFilters[k].includes(r[k])));
+        updateTable();
+    }
+
+    function initDragAndDrop() {
+        const row = document.getElementById('header-row');
+        let dragSrc = null;
+        Array.from(row.children).forEach(th => {
+            th.ondragstart = () => { dragSrc = th; th.style.opacity = '0.4'; };
+            th.ondragover = e => e.preventDefault();
+            th.ondrop = () => {
+                if (dragSrc !== th) {
+                    if (Array.from(row.children).indexOf(dragSrc) < Array.from(row.children).indexOf(th)) th.after(dragSrc);
+                    else th.before(dragSrc);
+                    localStorage.setItem('royal_diff_order', JSON.stringify(Array.from(row.children).map(c => c.dataset.field)));
+                    updateTable();
+                }
+            };
+            th.ondragend = () => th.style.opacity = '1';
+        });
+    }
+
+    function applySavedColumnOrder() {
+        const order = JSON.parse(localStorage.getItem('royal_diff_order'));
+        if (order) {
+            const row = document.getElementById('header-row'), map = {};
+            Array.from(row.children).forEach(th => map[th.dataset.field] = th);
+            order.forEach(f => { if(map[f]) row.appendChild(map[f]); });
+        }
+    }
+
+    function openConfigModal() {
+        const list = document.getElementById('config-list'); list.innerHTML = '';
+        Object.keys(pointsMapping).sort((a,b)=>pointsMapping[b]-pointsMapping[a]).forEach(k => addConfigRow(k, pointsMapping[k]));
+        toggleModal(true);
+    }
+    function addConfigRow(s='', v='') {
+        const d = document.createElement('div'); d.style.display="flex"; d.style.gap="5px"; d.style.marginBottom="5px";
+        d.innerHTML = `<input type="text" value="${s}" style="flex:1"><input type="text" value="${v}" style="flex:1"><button onclick="this.parentElement.remove()">✕</button>`;
+        document.getElementById('config-list').appendChild(d);
+    }
+    function savePointsConfig() {
+        const newMap = {};
+        document.querySelectorAll('#config-list > div').forEach(row => {
+            const inputs = row.querySelectorAll('input');
+            if(inputs[0].value) newMap[inputs[0].value] = inputs[1].value;
+        });
+        pointsMapping = newMap;
+        localStorage.setItem('royal_points_map_v10', JSON.stringify(newMap));
+        location.reload();
+    }
+    function resetToDefault() { localStorage.removeItem('royal_points_map_v10'); location.reload(); }
+    function toggleModal(s) { document.getElementById('config-modal').style.display = s ? 'flex' : 'none'; }
+    function doSort(f) {
+        sortState.asc = (sortState.field === f) ? !sortState.asc : true;
+        sortState.field = f;
+        combinedData.sort((a,b) => (a[f] < b[f] ? -1 : 1) * (sortState.asc ? 1 : -1));
+        runFilters();
+    }
+    function resetFilters() { currentFilters = {}; runFilters(); }
+    function closeFilter() { document.getElementById('filter-popover').style.display = 'none'; }
+    function setLog(m) { document.getElementById('log-text').innerText = m; }
+    window.onclick = e => { if(!e.target.closest('.filter-popover') && !e.target.closest('.filter-trigger')) closeFilter(); };
+</script>
+</body>
+</html>
