@@ -217,20 +217,25 @@
         pop.style.left = Math.min(r.left, window.innerWidth - 260) + 'px';
         pop.style.top = (r.bottom + window.scrollY + 5) + 'px';
 
-        // 获取唯一值并进行针对性排序
+	// 【核心修复】：基于当前已有的其他筛选条件，获取该列应显示的联动唯一值
+        const currentFilteredResults = combinedData.filter(r => 
+            Object.keys(currentFilters).every(k => k === f || currentFilters[k].includes(r[k]))
+        );
+
         let vals;
         if (f === 'month') {
             // Month 排序逻辑：按月+年的时间升序
-            vals = [...new Set(combinedData.map(x => x.month))].sort((a, b) => {
+            vals = [...new Set(currentFilteredResults.map(x => x.month))].sort((a, b) => {
                 return new Date(a).getTime() - new Date(b).getTime();
             });
         } else if (f === 'dateStr') {
             // Sail Date 排序逻辑：按时间戳升序
-            vals = [...new Set(combinedData.map(x => x.dateStr))].sort((a, b) => {
+            vals = [...new Set(currentFilteredResults.map(x => x.dateStr))].sort((a, b) => {
                 return new Date(a).getTime() - new Date(b).getTime();
             });
         } else {
-            vals = [...new Set(combinedData.map(x => x[f]))].sort((a,b)=> isNaN(a)?a.localeCompare(b):a-b);
+            // 其他字段排序逻辑
+            vals = [...new Set(currentFilteredResults.map(x => x[f]))].sort((a,b)=> isNaN(a)?a.localeCompare(b):a-b);
         }
 
         document.getElementById('popover-list').innerHTML = vals.map(v => `
