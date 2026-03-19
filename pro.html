@@ -247,15 +247,43 @@
             for (let s of selected) {
                 let name = (s==='A'&&t==='A') ? `${yr}${mo}A.pdf` : `${yr}${mo}${t}${s}.pdf`;
                 try {
+                    // 1. 预检：尝试获取已存在的文件
+                    let fileExists = false;
+                    try {
+                        await dirHandle.getFileHandle(name);
+                        fileExists = true;
+                    } catch (err) {
+                        // 文件不存在，会跳到这里，无需处理
+                    }
+
+                    // 2. 如果文件存在，提示用户
+                    if (fileExists) {
+                        const userChoice = confirm(`文件夹中已存在文件: ${name}\n\n点击【确定】：重新下载并覆盖\n点击【取消】：跳过下载，直接解析已有文件`);
+                        if (!userChoice) {
+                            // 用户点击取消：跳过下载，直接读取本地已有文件进行解析
+                            const existingFileHandle = await dirHandle.getFileHandle(name);
+                            const file = await existingFileHandle.getFile();
+                            await parsePdfContent(file);
+                            setLog(`跳过下载，已解析本地文件: ${name}`);
+                            continue; 
+                        }
+                    }
+
+                    // 3. 执行下载流程 (新文件或用户选择覆盖)
                     const res = await fetch(PDF_BASE_URL + name);
                     if(!res.ok) continue;
                     const blob = await res.blob();
                     const fileHandle = await dirHandle.getFileHandle(name, {create:true});
                     const writable = await fileHandle.createWritable();
-                    await writable.write(blob); await writable.close();
+                    await writable.write(blob); 
+                    await writable.close();
+                    
                     await parsePdfContent(blob);
-                    setLog(`处理成功: ${name}`);
-                } catch(e) {}
+                    setLog(`下载并解析成功: ${name}`);
+                } catch(e) {
+                    console.error(e);
+                    setLog(`处理失败: ${name}`);
+                }
             }
         }
         filteredRecords = [...allRecords];
