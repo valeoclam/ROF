@@ -3,13 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Slot 猎手 Pro - 策略增强版</title>
+    <title>Slot 猎手 Pro - 恢复滑动版</title>
     <style>
         :root { --bg: #000000; --card: #1a1a1a; --text: #ffffff; --accent: #f1c40f; --danger: #ff4757; --success: #2ed573; --info: #3498db; --backup: #9b59b6; }
-        * { touch-action: manipulation; -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
-        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         
-        /* 顶部状态栏 */
+        /* 允许滑动，但消除点击延迟 */
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+        
+        body { 
+            font-family: -apple-system, system-ui, sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            margin: 0; 
+            padding: 10px; 
+            min-height: 100vh; /* 改为最小高度，允许内容撑开 */
+            display: flex; 
+            flex-direction: column; 
+            overflow-y: auto; /* 恢复垂直滑动 */
+            -webkit-overflow-scrolling: touch; 
+        }
+        
         .dashboard { width: 100%; background: var(--card); padding: 12px; border-radius: 12px; margin-bottom: 8px; flex-shrink: 0; border: 1px solid #333; }
         .total-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 0 5px; }
         .sub-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -23,26 +36,24 @@
         .backup-mode { color: var(--backup); }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
 
-        /* 中间巨型按键区 */
-        .main-controls { flex-grow: 1; display: flex; flex-direction: column; gap: 12px; }
-        .btn-core { flex: 1; border: none; border-radius: 16px; font-size: 2rem; font-weight: 900; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        /* 按键区 - 依然保持巨大 */
+        .main-controls { display: flex; flex-direction: column; gap: 12px; min-height: 350px; }
+        .btn-core { flex: 1; border: none; border-radius: 16px; font-size: 2rem; font-weight: 900; color: white; min-height: 120px; }
         .btn-win { background: var(--success); }
         .btn-lose { background: var(--danger); }
         
-        /* 功能按键区 */
-        .secondary-controls { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 10px; flex-shrink: 0; }
+        .secondary-controls { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 10px; }
         .btn-func { border: none; padding: 16px; border-radius: 12px; font-size: 1.1rem; font-weight: bold; color: white; }
         .btn-big { background: var(--backup); }
         .btn-next { background: var(--info); }
         button:active { opacity: 0.6; transform: scale(0.97); }
 
-        /* 底部配置与历史记录 */
-        .footer-info { margin-top: 10px; flex-shrink: 0; padding-bottom: env(safe-area-inset-bottom); }
-        .history { height: 50px; overflow-y: auto; font-size: 0.75rem; background: #111; padding: 8px; border-radius: 8px; color: #777; border: 1px solid #222; }
+        .footer-info { margin-top: 15px; padding-bottom: 30px; }
+        .history { min-height: 60px; font-size: 0.75rem; background: #111; padding: 8px; border-radius: 8px; color: #777; border: 1px solid #222; word-break: break-all; }
         .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; background: #1a1a1a; padding: 8px; border-radius: 8px; }
         .config-item { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: #999; }
-        input { background: #333; border: 1px solid #444; color: #fff; width: 50px; height: 24px; text-align: center; font-size: 0.85rem; border-radius: 4px; font-weight: bold; }
-        .clear-btn { background: none; border: 1px solid #444; color: #555; font-size: 0.7rem; padding: 5px; border-radius: 4px; grid-column: span 2; margin-top: 5px; }
+        input { background: #333; border: 1px solid #444; color: #fff; width: 50px; height: 26px; text-align: center; border-radius: 4px; font-weight: bold; }
+        .clear-btn { background: none; border: 1px solid #444; color: #555; font-size: 0.7rem; padding: 8px; border-radius: 4px; grid-column: span 2; margin-top: 8px; }
     </style>
 </head>
 <body>
@@ -87,6 +98,19 @@
 </div>
 
 <script>
+    // 修复脚本：精准拦截双击缩放和多指缩放，但不拦截单指滑动
+    let lastClickTime = 0;
+    document.addEventListener('touchstart', function (event) {
+        if (event.touches.length > 1) {
+            event.preventDefault(); // 阻止多指缩放
+        }
+        let now = Date.now();
+        if (now - lastClickTime < 300) {
+            event.preventDefault(); // 阻止 300ms 内的双击
+        }
+        lastClickTime = now;
+    }, { passive: false });
+
     let data = { totalSpins: 0, currentSpins: 0, consecutiveZero: 0, machineCount: 1, backupCounter: -1, history: "" };
 
     function saveAll() {
@@ -94,12 +118,12 @@
         data.limitZero = document.getElementById('limit-zero').value;
         data.limitMachine = document.getElementById('limit-machine').value;
         data.limitBackup = document.getElementById('limit-backup').value;
-        localStorage.setItem('slot_final_v2', JSON.stringify(data));
+        localStorage.setItem('slot_final_v3', JSON.stringify(data));
         updateUI();
     }
 
     function loadAll() {
-        const saved = localStorage.getItem('slot_final_v2');
+        const saved = localStorage.getItem('slot_final_v3');
         if(saved) {
             data = JSON.parse(saved);
             document.getElementById('limit-total').value = data.limitTotal || 3000;
@@ -133,7 +157,7 @@
         if (data.backupCounter >= 0) {
             data.backupCounter++;
             if (data.backupCounter >= maxBackup) {
-                alert(`${maxBackup}次备份(Backup)已完成！\n请检查结果并决定是否换机。`);
+                alert(`${maxBackup}次备份(Backup)已完成！`);
                 data.backupCounter = -1;
             }
         }
@@ -145,7 +169,7 @@
         data.backupCounter = 0;
         const maxBackup = parseInt(document.getElementById('limit-backup').value);
         saveAll();
-        alert(`记录大奖成功！\n接下来${maxBackup}次将作为备份确认(Backup)。`);
+        alert(`大奖已记入！接下来的${maxBackup}次为备份确认。`);
     }
 
     function changeMachine() {
@@ -153,7 +177,7 @@
         if(data.consecutiveZero >= document.getElementById('limit-zero').value) reason = "连黑";
         else if(data.currentSpins >= document.getElementById('limit-machine').value) reason = "达标";
 
-        data.history = `[#${data.machineCount}: ${data.currentSpins}次-${reason}] ` + data.history;
+        data.history = `[#${data.machineCount}: ${data.currentSpins}-${reason}] ` + data.history;
         data.currentSpins = 0; data.consecutiveZero = 0; data.backupCounter = -1; data.machineCount++;
         document.getElementById('history-log').innerHTML = "历史: " + data.history;
         saveAll();
@@ -176,8 +200,8 @@
     }
 
     function clearAll() {
-        if(confirm("确定要重置所有数据吗？\n(包括总计3000次的进度)")) { 
-            localStorage.removeItem('slot_final_v2'); 
+        if(confirm("确定要重置所有数据吗？")) { 
+            localStorage.removeItem('slot_final_v3'); 
             location.reload(); 
         }
     }
