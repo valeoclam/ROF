@@ -161,11 +161,25 @@
     }
 
     function checkVibrate() {
-        if(!state.useVibrate || !navigator.vibrate) return;
-        if(state.zero === state.limitZero || state.current === state.limitMachine || state.backupLeft === 0) {
-            navigator.vibrate([200, 100, 200]);
-        }
+    // 增加对 iOS 是否支持该 API 的判断提示
+    if(!state.useVibrate) return;
+    
+    if(!navigator.vibrate) {
+        console.log("当前设备或浏览器不支持振动 API");
+        return;
     }
+
+    // 触发条件判断
+    const isLimitReached = (state.current >= state.limitMachine);
+    const isLossLimitReached = (state.zero >= state.limitZero);
+    const isBackupDone = (state.backupLeft === 0);
+
+    if(isLimitReached || isLossLimitReached || isBackupDone) {
+        // iOS 往往不支持长短交替脉冲，改为多次简单的短震动尝试
+        navigator.vibrate(200); 
+        setTimeout(() => navigator.vibrate(200), 300);
+    }
+}
 
     function nextMachine() {
         if(state.current === 0) return;
@@ -227,13 +241,22 @@
     function changeDenom(d) { state.currentDenom = d; sync(); }
 
     function saveCfg() {
-        state.limitTotal = parseInt(document.getElementById('cfg-total').value) || 3000;
-        state.limitZero = parseInt(document.getElementById('cfg-zero').value) || 3;
-        state.limitMachine = parseInt(document.getElementById('cfg-machine').value) || 20;
-        state.useVibrate = document.getElementById('cfg-vibrate').checked;
-        state.defaultDenom = document.getElementById('cfg-def-denom').value;
-        sync();
+    state.limitTotal = parseInt(document.getElementById('cfg-total').value) || 3000;
+    state.limitZero = parseInt(document.getElementById('cfg-zero').value) || 3;
+    state.limitMachine = parseInt(document.getElementById('cfg-machine').value) || 20;
+    state.useVibrate = document.getElementById('cfg-vibrate').checked;
+    
+    // 获取新设定的默认面值
+    const newDefault = document.getElementById('cfg-def-denom').value;
+    state.defaultDenom = newDefault;
+
+    // 即时生效逻辑：如果当前机器还没开始（转数为0），直接同步当前面值
+    if (state.current === 0) {
+        state.currentDenom = newDefault;
     }
+
+    sync(); // sync 内部会调用 updateUI()，从而即时更新主界面按钮颜色
+}
 
     function exportCSV() {
         let csv = "\uFEFF编号,面值,总转数,中奖,原因,时间\n";
@@ -253,18 +276,31 @@
     function resetSystem() { if(confirm("确定清空所有记录和配置吗？")) { localStorage.clear(); location.reload(); } }
 
     window.onload = () => {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if(saved) state = { ...state, ...JSON.parse(saved) };
-        if(state.current === 0) state.currentDenom = state.defaultDenom;
-        
-        document.getElementById('cfg-total').value = state.limitTotal;
-        document.getElementById('cfg-zero').value = state.limitZero;
-        document.getElementById('cfg-machine').value = state.limitMachine;
-        document.getElementById('cfg-vibrate').checked = state.useVibrate;
-        document.getElementById('cfg-def-denom').innerHTML = state.denomList.map(d => `<option value="${d}" ${state.defaultDenom === d ? 'selected' : ''}>${d}</option>`).join('');
-        
-        updateUI();
-    };
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if(saved) {
+        const parsed = JSON.parse(saved);
+        state = { ...state, ...parsed };
+    }
+    
+    // 页面打开时，如果是新机器状态，自动应用默认面值
+    if(state.current === 0) {
+        state.currentDenom = state.defaultDenom;
+    }
+    
+    // 同步配置界面表单值
+    document.getElementById('cfg-total').value = state.limitTotal;
+    document.getElementById('cfg-zero').value = state.limitZero;
+    document.getElementById('cfg-machine').value = state.limitMachine;
+    document.getElementById('cfg-vibrate').checked = state.useVibrate;
+    
+    // 渲染面值下拉菜单
+    const defSelect = document.getElementById('cfg-def-denom');
+    defSelect.innerHTML = state.denomList.map(d => 
+        `<option value="${d}" ${state.defaultDenom === d ? 'selected' : ''}>${d}</option>`
+    ).join('');
+    
+    updateUI(); 
+};
 </script>
 </body>
 </html>
