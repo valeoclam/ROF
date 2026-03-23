@@ -50,13 +50,23 @@
     <script>
         // 模式 1 & 3 的普通触发
         function runVibrate(ms) {
-            if (navigator.vibrate) {
-                navigator.vibrate(ms);
-                console.log("尝试震动: " + ms + "ms");
+    // 检查 navigator 对象是否存在震动函数
+    if (typeof navigator.vibrate === "function") {
+        try {
+            const success = navigator.vibrate(ms);
+            if (success) {
+                console.log("震动指令已发出");
             } else {
-                alert("当前浏览器不支持震动接口");
+                alert("震动指令被系统拒绝（请检查是否静音或低电量）");
             }
+        } catch (e) {
+            alert("触发震动时发生错误: " + e.message);
         }
+    } else {
+        // 如果这里报错，说明环境确实不支持
+        alert("错误：当前浏览器环境完全不支持 navigator.vibrate 接口。请确认是否使用了 Safari 并通过 HTTPS 访问。");
+    }
+}
 
         function runDoubleVibrate() {
             if (navigator.vibrate) {
