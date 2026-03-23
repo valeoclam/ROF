@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Slot 猎手 Pro - 持久化版</title>
+    <style>
+        :root { --bg: #121212; --card: #1e1e1e; --text: #ffffff; --accent: #f1c40f; --danger: #ff4757; --success: #2ed573; --info: #3498db; --backup: #9b59b6; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
+        .dashboard { width: 95%; max-width: 400px; background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid #333; margin-bottom: 10px; }
+        .stat-box { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 10px; background: #262626; border-radius: 8px; }
+        .label { font-size: 0.85rem; color: #aaa; }
+        .value { font-size: 1.8rem; font-weight: bold; color: var(--accent); cursor: pointer; border-bottom: 1px dashed #555; }
+        .total-row { background: none; border: none; margin-bottom: 10px; }
+        .total-value { font-size: 2.2rem; color: var(--info); }
+        
+        .alert-area { height: 35px; text-align: center; margin-bottom: 10px; font-weight: bold; font-size: 1.2rem; }
+        .warning { color: var(--danger); animation: pulse 1s infinite; }
+        .backup-mode { color: var(--backup); }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 95%; max-width: 400px; }
+        button { border: none; padding: 20px; border-radius: 12px; font-size: 1rem; font-weight: bold; color: white; transition: opacity 0.1s; }
+        button:active { opacity: 0.6; }
+        .btn-win { background: var(--success); }
+        .btn-lose { background: var(--danger); }
+        .btn-big { background: var(--backup); grid-column: span 2; padding: 15px; font-size: 1.1rem; }
+        .btn-next { background: var(--info); grid-column: span 2; padding: 12px; margin-top: 5px; }
+
+        .config-panel { width: 95%; max-width: 400px; margin-top: 15px; font-size: 0.8rem; color: #666; border-top: 1px solid #333; padding-top: 10px; }
+        .config-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        input { background: #333; border: 1px solid #444; color: #fff; width: 45px; text-align: center; border-radius: 4px; }
+        
+        .history { width: 95%; max-width: 400px; margin-top: 10px; max-height: 120px; overflow-y: auto; font-size: 0.75rem; background: #000; padding: 8px; border-radius: 8px; border: 1px solid #222; }
+    </style>
+</head>
+<body>
+
+<div class="dashboard">
+    <div class="stat-box total-row">
+        <span class="label">总 Spin 次数</span>
+        <span id="total-spins" class="value total-value" onclick="editVal('total')">0</span>
+    </div>
+    <div class="stat-box">
+        <span class="label">当前机 Spin</span>
+        <span id="current-spins" class="value" onclick="editVal('current')">0</span>
+    </div>
+    <div class="stat-box">
+        <span class="label">连续 0 中奖</span>
+        <span id="consecutive-zero" class="value" onclick="editVal('zero')">0</span>
+    </div>
+    <div id="alert-msg" class="alert-area"></div>
+</div>
+
+<div class="btn-grid">
+    <button class="btn-win" onclick="recordSpin(true)">中奖 (>0)</button>
+    <button class="btn-lose" onclick="recordSpin(false)">没中 (0)</button>
+    <button class="btn-big" onclick="triggerBigWin()">⭐ 触发 10倍大奖 (开启3次Backup)</button>
+    <button class="btn-next" onclick="changeMachine()">换下一台 (结算历史)</button>
+</div>
+
+<div class="history" id="history-log"><strong>历史记录：</strong></div>
+
+<div class="config-panel">
+    <div class="config-row"><span>总目标:</span><input type="number" id="limit-total" value="3000" onchange="saveAll()"></div>
+    <div class="config-row"><span>连黑止损:</span><input type="number" id="limit-zero" value="3" onchange="saveAll()"></div>
+    <div class="config-row"><span>单机上限:</span><input type="number" id="limit-machine" value="20" onchange="saveAll()"></div>
+    <div style="text-align:right; margin-top:10px;">
+        <button onclick="clearAll()" style="background:none; border:1px solid #444; color:#555; padding:3px 8px; font-size:0.7rem;">清空所有(重置计划)</button>
+    </div>
+</div>
+
+<script>
+    let data = {
+        totalSpins: 0,
+        currentSpins: 0,
+        consecutiveZero: 0,
+        machineCount: 1,
+        backupCounter: -1, // -1 表示不在备份模式
+        history: ""
+    };
+
+    function saveAll() {
+        data.limitTotal = document.getElementById('limit-total').value;
+        data.limitZero = document.getElementById('limit-zero').value;
+        data.limitMachine = document.getElementById('limit-machine').value;
+        localStorage.setItem('slot_hunter_data', JSON.stringify(data));
+        updateUI();
+    }
+
+    function loadAll() {
+        const saved = localStorage.getItem('slot_hunter_data');
+        if(saved) {
+            data = JSON.parse(saved);
+            document.getElementById('limit-total').value = data.limitTotal || 3000;
+            document.getElementById('limit-zero').value = data.limitZero || 3;
+            document.getElementById('limit-machine').value = data.limitMachine || 20;
+            document.getElementById('history-log').innerHTML = "<strong>历史记录：</strong>" + (data.history || "");
+        }
+        updateUI();
+    }
+
+    function editVal(type) {
+        let val;
+        if(type === 'total') val = prompt("修改总计:", data.totalSpins);
+        if(type === 'current') val = prompt("修改单机:", data.currentSpins);
+        if(type === 'zero') val = prompt("修改连黑:", data.consecutiveZero);
+        
+        if(val !== null) {
+            if(type === 'total') data.totalSpins = parseInt(val) || 0;
+            if(type === 'current') data.currentSpins = parseInt(val) || 0;
+            if(type === 'zero') data.consecutiveZero = parseInt(val) || 0;
+            saveAll();
+        }
+    }
+
+    function recordSpin(isWin) {
+        data.totalSpins++;
+        data.currentSpins++;
+        
+        if (isWin) {
+            data.consecutiveZero = 0;
+        } else {
+            data.consecutiveZero++;
+        }
+
+        // 处理 Backup 逻辑
+        if (data.backupCounter >= 0) {
+            data.backupCounter++;
+            if (data.backupCounter >= 3) {
+                alert("✅ 3次 Backup 已完成，请根据结果决定是否换机。");
+                data.backupCounter = -1;
+            }
+        }
+
+        saveAll();
+    }
+
+    function triggerBigWin() {
+        data.totalSpins++;
+        data.currentSpins++;
+        data.consecutiveZero = 0;
+        data.backupCounter = 0; // 开启 3 次计数
+        saveAll();
+        alert("💰 大奖记录成功！接下来的 3 次将作为 Backup Spins 提醒。");
+    }
+
+    function changeMachine() {
+        let reason = "手动";
+        if(data.consecutiveZero >= document.getElementById('limit-zero').value) reason = "连黑";
+        else if(data.currentSpins >= document.getElementById('limit-machine').value) reason = "达标";
+
+        const entry = `<div><span style="color:#3498db">#${data.machineCount}</span> | Spin: ${data.currentSpins} | ${reason}</div>`;
+        data.history = entry + data.history;
+        
+        data.currentSpins = 0;
+        data.consecutiveZero = 0;
+        data.backupCounter = -1;
+        data.machineCount++;
+        
+        document.getElementById('history-log').innerHTML = "<strong>历史记录：</strong>" + data.history;
+        saveAll();
+    }
+
+    function updateUI() {
+        document.getElementById('total-spins').innerText = data.totalSpins;
+        document.getElementById('current-spins').innerText = data.currentSpins;
+        document.getElementById('consecutive-zero').innerText = data.consecutiveZero;
+        
+        const msg = document.getElementById('alert-msg');
+        msg.innerHTML = "";
+        
+        if (data.backupCounter >= 0) {
+            msg.innerHTML = `<span class="backup-mode">🔄 Backup Spin: 第 ${data.backupCounter}/3 次</span>`;
+        } else if (data.consecutiveZero >= document.getElementById('limit-zero').value) {
+            msg.innerHTML = `<span class="warning">STOP: 连黑换机!</span>`;
+        } else if (data.currentSpins >= document.getElementById('limit-machine').value) {
+            msg.innerHTML = `<span class="warning">LIMIT: 满额换机!</span>`;
+        }
+    }
+
+    function clearAll() {
+        if(confirm("确定清空数据并重置计划吗？")) {
+            localStorage.removeItem('slot_hunter_data');
+            location.reload();
+        }
+    }
+
+    window.onload = loadAll;
+</script>
+</body>
+</html>
