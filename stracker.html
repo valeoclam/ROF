@@ -11,7 +11,6 @@
         body { 
             font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); 
             margin: 0; padding: 5px; 
-            /* 预留 130px 空间避开手机浏览器底栏 */
             height: calc(100vh - 130px); 
             display: flex; flex-direction: column; overflow: hidden; position: fixed; width: 100%;
         }
@@ -40,7 +39,6 @@
         .btn-sub:disabled { background: #222; color: #444; opacity: 0.5; }
         button:active { opacity: 0.6; transform: scale(0.97); }
 
-        /* 设置抽屉面板 */
         .drawer { position: fixed; top: 0; right: -100%; width: 100%; height: 100%; background: #000; z-index: 100; transition: 0.3s; padding: 20px; display: flex; flex-direction: column; }
         .drawer.open { right: 0; }
         .config-list { background: #111; border-radius: 12px; padding: 12px; flex-shrink: 0; }
@@ -56,7 +54,7 @@
 <body>
 
 <div class="top-nav">
-    <div class="logo">SLOT HUNTER V12</div>
+    <div class="logo">SLOT HUNTER V13</div>
     <button class="settings-btn" onclick="toggleDrawer(true)">配置 / 历史 ⚙️</button>
 </div>
 
@@ -101,8 +99,9 @@
 </div>
 
 <script>
+    // 状态初始化，增加 wasBackup 标记
     let state = { 
-        total: 0, current: 0, zero: 0, mCount: 1, backup: -1, log: "",
+        total: 0, current: 0, zero: 0, mCount: 1, backup: -1, wasBackup: false, log: "",
         limitTotal: 3000, limitZero: 3, limitMachine: 20, limitBackup: 3 
     };
 
@@ -117,18 +116,23 @@
     }
 
     function syncStorage() {
-        localStorage.setItem('slot_v12_final', JSON.stringify(state));
+        localStorage.setItem('slot_v13_logic', JSON.stringify(state));
         render();
     }
 
     function handleSpin(win) {
         state.total++; state.current++;
         state.zero = win ? 0 : state.zero + 1;
+        
         if(state.backup >= 0) {
             state.backup++;
             if(state.backup >= state.limitBackup) {
                 render();
-                setTimeout(() => { alert(`✅ ${state.limitBackup}次备份已完成！`); state.backup = -1; syncStorage(); }, 50);
+                setTimeout(() => { 
+                    alert(`✅ ${state.limitBackup}次备份已完成！`); 
+                    state.backup = -1; 
+                    syncStorage(); 
+                }, 50);
             }
         }
         syncStorage();
@@ -136,20 +140,31 @@
 
     function startBackup() {
         if(state.current === 0) return alert("当前机次数为0，无法备份");
-        state.total++; state.current++; state.zero = 0; state.backup = 0;
+        // 点击大奖按钮本身算 1 次 Spin
+        state.total++; state.current++; 
+        state.zero = 0; 
+        state.backup = 0; 
+        state.wasBackup = true; // 标记这台机器出过大奖
         syncStorage();
     }
 
     function nextMachine() {
         let 原因 = "手动换机";
-        if(state.zero >= state.limitZero) 原因 = "连黑止损";
+        // 逻辑优先级：大奖备份 > 连黑止损 > 满额换机
+        if(state.wasBackup) 原因 = "⭐ 大奖备份";
+        else if(state.zero >= state.limitZero) 原因 = "连黑止损";
         else if(state.current >= state.limitMachine) 原因 = "满额换机";
         
-        // 历史记录改为中文显示
         const 记录 = `<div style="margin-bottom:5px;">第${state.mCount}台: ${state.current}转 (${原因})</div>`;
         state.log = 记录 + state.log;
         
-        state.current = 0; state.zero = 0; state.backup = -1; state.mCount++;
+        // 重置机器状态
+        state.current = 0; 
+        state.zero = 0; 
+        state.backup = -1; 
+        state.wasBackup = false; // 清除大奖标记
+        state.mCount++;
+        
         document.getElementById('log-area').innerHTML = state.log;
         syncStorage();
     }
@@ -164,10 +179,12 @@
         msg.innerHTML = "";
         
         if(state.backup >= 0) {
-            btnB.disabled = true; btnB.innerText = `🔄 备份记录中...`;
+            btnB.disabled = true; 
+            btnB.innerText = `🔄 记录中...`;
             msg.innerHTML = `<span class="backup-text">🔄 备份进度: ${state.backup}/${state.limitBackup}</span>`;
         } else {
-            btnB.disabled = false; btnB.innerText = `⭐ 10倍大奖 (开启备份)`;
+            btnB.disabled = false; 
+            btnB.innerText = `⭐ 10倍大奖 (开启备份)`;
             if(state.zero >= state.limitZero) msg.innerHTML = `<span class="warning">⚠️ 触发止损，请换机!</span>`;
             else if(state.current >= state.limitMachine) msg.innerHTML = `<span class="warning">🛑 达到上限，请换机!</span>`;
         }
@@ -181,7 +198,7 @@
     function resetSystem() { if(confirm("确定重置所有数据？")) { localStorage.clear(); location.reload(); } }
 
     window.onload = () => {
-        const saved = localStorage.getItem('slot_v12_final');
+        const saved = localStorage.getItem('slot_v13_logic');
         if(saved) {
             state = { ...state, ...JSON.parse(saved) };
             document.getElementById('cfg-total').value = state.limitTotal;
