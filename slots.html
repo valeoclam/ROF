@@ -161,23 +161,13 @@
     }
 
     function checkVibrate() {
-    // 增加对 iOS 是否支持该 API 的判断提示
-    if(!state.useVibrate) return;
-    
-    if(!navigator.vibrate) {
-        console.log("当前设备或浏览器不支持振动 API");
-        return;
-    }
+    if(!state.useVibrate || !navigator.vibrate) return;
 
-    // 触发条件判断
-    const isLimitReached = (state.current >= state.limitMachine);
-    const isLossLimitReached = (state.zero >= state.limitZero);
-    const isBackupDone = (state.backupLeft === 0);
-
-    if(isLimitReached || isLossLimitReached || isBackupDone) {
-        // iOS 往往不支持长短交替脉冲，改为多次简单的短震动尝试
-        navigator.vibrate(200); 
-        setTimeout(() => navigator.vibrate(200), 300);
+    // 只要达到任何一个临界点就震动
+    if(state.zero >= state.limitZero || state.current >= state.limitMachine || state.backupLeft === 0) {
+        // iOS 兼容性写法：连续触发两次短震
+        navigator.vibrate(200);
+        setTimeout(() => { navigator.vibrate(200); }, 400);
     }
 }
 
