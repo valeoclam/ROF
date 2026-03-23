@@ -3,54 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Slot 猎手 Pro</title>
+    <title>Slot Hunter Pro</title>
     <style>
         :root { --bg: #000; --card: #161616; --text: #fff; --accent: #f1c40f; --danger: #ff4757; --success: #2ed573; --info: #3498db; --backup: #9b59b6; }
         * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; touch-action: manipulation; }
         
         body { 
             font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); 
-            margin: 0; padding: 10px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; position: fixed; width: 100%;
+            margin: 0; padding: 8px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; position: fixed; width: 100%;
         }
 
-        .top-nav { display: flex; justify-content: space-between; align-items: center; padding: 5px 5px 10px; flex-shrink: 0; }
-        .logo { font-size: 0.9rem; font-weight: bold; color: #444; letter-spacing: 1px; }
-        .settings-btn { background: #222; border: none; color: #fff; padding: 8px 15px; border-radius: 20px; font-size: 0.8rem; }
+        /* 压缩顶部间距 */
+        .top-nav { display: flex; justify-content: space-between; align-items: center; padding: 2px 5px 8px; flex-shrink: 0; }
+        .logo { font-size: 0.8rem; font-weight: bold; color: #444; letter-spacing: 1px; }
+        .settings-btn { background: #222; border: none; color: #fff; padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; }
 
-        .dashboard { background: var(--card); padding: 15px; border-radius: 16px; border: 1px solid #333; margin-bottom: 12px; flex-shrink: 0; }
-        .total-box { text-align: center; margin-bottom: 15px; border-bottom: 1px solid #222; padding-bottom: 10px; }
-        .sub-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .stat-card { background: #222; padding: 10px; border-radius: 12px; text-align: center; }
+        /* 紧凑数据显示区 */
+        .dashboard { background: var(--card); padding: 10px; border-radius: 12px; border: 1px solid #333; margin-bottom: 8px; flex-shrink: 0; }
+        .total-box { text-align: center; margin-bottom: 8px; border-bottom: 1px solid #222; padding-bottom: 5px; }
+        .sub-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .stat-card { background: #222; padding: 6px; border-radius: 10px; text-align: center; }
         
-        .label { font-size: 0.75rem; color: #777; margin-bottom: 5px; display: block; }
-        .val-total { font-size: 2.4rem; color: var(--info); font-weight: 900; }
-        .val-sub { font-size: 1.6rem; color: var(--accent); font-weight: bold; }
-        .alert-msg { height: 30px; line-height: 30px; text-align: center; font-weight: bold; font-size: 1rem; margin-top: 10px; }
+        .label { font-size: 0.7rem; color: #777; margin-bottom: 2px; display: block; }
+        .val-total { font-size: 2rem; color: var(--info); font-weight: 900; line-height: 1; }
+        .val-sub { font-size: 1.4rem; color: var(--accent); font-weight: bold; line-height: 1.2; }
+        .alert-msg { height: 24px; line-height: 24px; text-align: center; font-weight: bold; font-size: 0.9rem; margin-top: 5px; }
 
-        .action-area { flex-grow: 1; display: flex; flex-direction: column; gap: 12px; margin-bottom: env(safe-area-inset-bottom); }
-        .btn-main { flex: 2; border: none; border-radius: 20px; font-size: 2rem; font-weight: 900; color: #fff; box-shadow: 0 6px 15px rgba(0,0,0,0.4); }
+        /* 优化后的操作区：确保四个按钮都能放下 */
+        .action-area { flex-grow: 1; display: flex; flex-direction: column; gap: 8px; margin-bottom: env(safe-area-inset-bottom); padding-bottom: 5px; }
+        .btn-main { flex: 2; border: none; border-radius: 16px; font-size: 1.8rem; font-weight: 900; color: #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
         .btn-win { background: var(--success); }
         .btn-lose { background: var(--danger); }
         
-        .btn-sub { flex: 0.8; border: none; border-radius: 15px; font-size: 1.1rem; font-weight: bold; color: #fff; transition: all 0.2s; }
+        .btn-sub { flex: 0.9; border: none; border-radius: 12px; font-size: 1rem; font-weight: bold; color: #fff; }
         .btn-big { background: var(--backup); }
         .btn-next { background: var(--info); }
         
-        /* 核心样式：禁用状态 */
-        .btn-sub:disabled { background: #333; color: #666; opacity: 0.6; transform: none !important; box-shadow: none; }
-        
-        button:active { opacity: 0.6; transform: scale(0.96); transition: 0.1s; }
+        .btn-sub:disabled { background: #333; color: #666; opacity: 0.6; }
+        button:active { opacity: 0.6; transform: scale(0.97); transition: 0.1s; }
 
-        /* 侧边栏样式 */
-        .drawer { position: fixed; top: 0; right: -100%; width: 100%; height: 100%; background: #000; z-index: 100; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); padding: 20px; display: flex; flex-direction: column; }
+        /* 设置抽屉 */
+        .drawer { position: fixed; top: 0; right: -100%; width: 100%; height: 100%; background: #000; z-index: 100; transition: 0.3s; padding: 20px; display: flex; flex-direction: column; }
         .drawer.open { right: 0; }
-        .drawer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .drawer-content { flex-grow: 1; overflow-y: auto; }
-        .config-list { background: #111; border-radius: 12px; padding: 15px; margin-bottom: 20px; }
-        .config-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #222; }
-        input { background: #333; border: none; color: #fff; width: 80px; height: 30px; text-align: center; border-radius: 6px; font-weight: bold; font-size: 1rem; }
-        .history-pane { background: #111; border-radius: 12px; padding: 15px; font-size: 0.85rem; color: #666; line-height: 1.6; min-height: 150px; word-break: break-all; }
-        .reset-btn { background: none; color: #555; border: 1px solid #333; padding: 12px; border-radius: 12px; width: 100%; margin-top: 20px; font-size: 0.8rem; }
+        .history-pane { background: #111; border-radius: 12px; padding: 10px; font-size: 0.85rem; color: #666; flex-grow: 1; overflow-y: auto; word-break: break-all; margin-top: 10px; }
+        .config-list { background: #111; border-radius: 12px; padding: 10px; flex-shrink: 0; }
+        .config-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #222; }
+        input { background: #333; border: none; color: #fff; width: 80px; height: 30px; text-align: center; border-radius: 6px; font-weight: bold; }
 
         .warning { color: var(--danger); animation: blink 0.8s infinite; }
         .backup-text { color: var(--backup); }
@@ -85,22 +83,23 @@
 <div class="action-area">
     <button class="btn-main btn-win" onclick="handleSpin(true)">中 奖</button>
     <button class="btn-main btn-lose" onclick="handleSpin(false)">没 中</button>
-    <button class="btn-sub btn-big" id="btn-backup-trigger" onclick="startBackup()">⭐ 10倍大奖 (开启备份)</button>
+    <button class="btn-sub btn-big" id="btn-backup-trigger" onclick="startBackup()">⭐ 10倍大奖 (备份)</button>
     <button class="btn-sub btn-next" onclick="nextMachine()">换下一台</button>
 </div>
 
 <div id="drawer" class="drawer">
-    <div class="drawer-header"><h2 style="margin:0">设置与记录</h2><button class="settings-btn" onclick="toggleDrawer(false)">关闭 ✕</button></div>
-    <div class="drawer-content">
-        <div class="config-list">
-            <div class="config-item"><span>总目标次数</span><input type="number" id="cfg-total" value="3000" onchange="saveCfg()"></div>
-            <div class="config-item"><span>连黑止损</span><input type="number" id="cfg-zero" value="3" onchange="saveCfg()"></div>
-            <div class="config-item"><span>单机上限</span><input type="number" id="cfg-machine" value="20" onchange="saveCfg()"></div>
-            <div class="config-item"><span>备份次数</span><input type="number" id="cfg-backup" value="3" onchange="saveCfg()"></div>
-        </div>
-        <div class="history-pane" id="log-area">暂无历史记录...</div>
-        <button class="reset-btn" onclick="resetSystem()">重置系统所有数据</button>
+    <div class="drawer-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0">设置与记录</h3>
+        <button class="settings-btn" onclick="toggleDrawer(false)">关闭 ✕</button>
     </div>
+    <div class="config-list" style="margin-top:15px;">
+        <div class="config-item"><span>总目标</span><input type="number" id="cfg-total" value="3000" onchange="saveCfg()"></div>
+        <div class="config-item"><span>连黑止损</span><input type="number" id="cfg-zero" value="3" onchange="saveCfg()"></div>
+        <div class="config-item"><span>单机上限</span><input type="number" id="cfg-machine" value="20" onchange="saveCfg()"></div>
+        <div class="config-item"><span>备份次数</span><input type="number" id="cfg-backup" value="3" onchange="saveCfg()"></div>
+    </div>
+    <div class="history-pane" id="log-area">暂无记录...</div>
+    <button onclick="resetSystem()" style="background:none; color:#444; border:1px solid #222; padding:10px; margin-top:10px; border-radius:8px;">重置所有数据</button>
 </div>
 
 <script>
@@ -128,12 +127,12 @@
     }
 
     function syncStorage() {
-        localStorage.setItem('slot_pro_v7_locked', JSON.stringify(state));
+        localStorage.setItem('slot_pro_v8_compact', JSON.stringify(state));
         render();
     }
 
     function init() {
-        const saved = localStorage.getItem('slot_pro_v7_locked');
+        const saved = localStorage.getItem('slot_pro_v8_compact');
         if(saved) {
             state = { ...state, ...JSON.parse(saved) };
             document.getElementById('cfg-total').value = state.limitTotal;
@@ -146,34 +145,21 @@
     }
 
     function handleSpin(win) {
-        state.total++;
-        state.current++;
+        state.total++; state.current++;
         state.zero = win ? 0 : state.zero + 1;
-
         if(state.backup >= 0) {
             state.backup++;
             if(state.backup >= state.limitBackup) {
-                render(); 
-                setTimeout(() => {
-                    alert(`${state.limitBackup}次备份已完成！`);
-                    state.backup = -1;
-                    syncStorage();
-                }, 50);
+                render();
+                setTimeout(() => { alert(`备份完成！`); state.backup = -1; syncStorage(); }, 50);
             }
         }
         syncStorage();
     }
 
     function startBackup() {
-        if(state.current === 0) {
-            alert("⚠️ 次数为0，无法开启备份。");
-            return;
-        }
-        // 记录大奖这一手
-        state.total++; 
-        state.current++; 
-        state.zero = 0;
-        state.backup = 0;
+        if(state.current === 0) return alert("次数为0");
+        state.total++; state.current++; state.zero = 0; state.backup = 0;
         syncStorage();
     }
 
@@ -181,8 +167,7 @@
         let r = "M";
         if(state.zero >= state.limitZero) r = "Z";
         else if(state.current >= state.limitMachine) r = "L";
-        
-        state.log = `[#${state.mCount}: ${state.current}-${r}] ` + state.log;
+        state.log = `[#${state.mCount}:${state.current}-${r}] ` + state.log;
         state.current = 0; state.zero = 0; state.backup = -1; state.mCount++;
         document.getElementById('log-area').innerHTML = state.log;
         syncStorage();
@@ -192,37 +177,25 @@
         document.getElementById('total-spins').innerText = state.total;
         document.getElementById('current-spins').innerText = state.current;
         document.getElementById('consecutive-zero').innerText = state.zero;
-        
         const msg = document.getElementById('alert-msg');
-        const backupBtn = document.getElementById('btn-backup-trigger');
+        const btnB = document.getElementById('btn-backup-trigger');
         msg.innerHTML = "";
-        
-        // 核心改动：根据备份状态控制按钮
         if(state.backup >= 0) {
-            backupBtn.disabled = true;
-            backupBtn.innerText = `🔄 备份记录中...`;
-            msg.innerHTML = `<span class="backup-text">🔄 备份进度: ${state.backup}/${state.limitBackup}</span>`;
+            btnB.disabled = true; btnB.innerText = `备份中...`;
+            msg.innerHTML = `<span class="backup-text">🔄 进度: ${state.backup}/${state.limitBackup}</span>`;
         } else {
-            backupBtn.disabled = false;
-            backupBtn.innerText = `⭐ 10倍大奖 (开启备份)`;
-            
-            if(state.zero >= state.limitZero) {
-                msg.innerHTML = `<span class="warning">⚠️ 连黑止损，请换机!</span>`;
-            } else if(state.current >= state.limitMachine) {
-                msg.innerHTML = `<span class="warning">🛑 达到单机上限!</span>`;
-            }
+            btnB.disabled = false; btnB.innerText = `⭐ 10倍大奖 (备份)`;
+            if(state.zero >= state.limitZero) msg.innerHTML = `<span class="warning">⚠️ 连黑换机!</span>`;
+            else if(state.current >= state.limitMachine) msg.innerHTML = `<span class="warning">🛑 满额换机!</span>`;
         }
     }
 
     function manualEdit(type) {
-        let v = prompt("手动修改:", state[type]);
+        let v = prompt("修改:", state[type]);
         if(v !== null) { state[type] = parseInt(v) || 0; syncStorage(); }
     }
 
-    function resetSystem() {
-        if(confirm("确定重置所有数据？")) { localStorage.removeItem('slot_pro_v7_locked'); location.reload(); }
-    }
-
+    function resetSystem() { if(confirm("重置？")) { localStorage.removeItem('slot_pro_v8_compact'); location.reload(); } }
     window.onload = init;
 </script>
 </body>
