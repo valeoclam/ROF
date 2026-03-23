@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Slot Hunter V21</title>
+    <title>Slot Hunter V23</title>
     
     <style>
         :root { --bg: #000; --card: #161616; --text: #fff; --accent: #f1c40f; --danger: #ff4757; --success: #2ed573; --info: #3498db; --backup: #9b59b6; }
@@ -41,8 +41,12 @@
         button:active { opacity: 0.7; transform: scale(0.96); }
         button:disabled { opacity: 0.3; cursor: not-allowed; }
 
-        .btn-lose { flex: 2; background: var(--danger); border-radius: 20px; font-size: 2rem; }
-        .btn-win { flex: 1; background: var(--success); border-radius: 20px; font-size: 1.3rem; }
+        /* 新增：单/双击大按钮样式 */
+        #main-action-btn { 
+            flex: 1; background: #333; border: 2px solid #444; border-radius: 25px; 
+            font-size: 2rem; line-height: 1.2; transition: background 0.15s;
+        }
+
         .btn-big { flex: 1; background: var(--backup); border-radius: 15px; font-size: 1rem; }
         .btn-next { flex: 1; background: var(--info); border-radius: 15px; font-size: 1rem; }
 
@@ -85,9 +89,11 @@
 </div>
 
 <div class="action-area">
-    <div class="btn-row" style="flex: 2;">
-        <button class="btn-lose" onclick="handleSpin(false)">没 中</button>
-        <button class="btn-win" onclick="handleSpin(true)">中 奖</button>
+    <div class="btn-row" style="flex: 2.5;">
+        <button id="main-action-btn">
+            单击: 没中<br>
+            <span style="font-size: 1.1rem; opacity: 0.6; font-weight: normal;">双击: 中奖</span>
+        </button>
     </div>
     <div class="btn-row">
         <button class="btn-big" id="btn-backup" onclick="startBackup()">⭐ 10倍大奖</button>
@@ -114,7 +120,7 @@
 </div>
 
 <script>
-    const STORAGE_KEY = 'SLOT_HUNTER_V21_CORE';
+    const STORAGE_KEY = 'SLOT_HUNTER_V23_CORE';
     let state = {
         total: 0, current: 0, zero: 0, wins: 0, loses: 0, mCount: 1,
         backupLeft: -1, log: [], 
@@ -122,9 +128,11 @@
         limitTotal: 3000, limitZero: 3, limitMachine: 20, useVibrate: true
     };
 
+    let clickTimer = null; // 区分单双击计时器
+
     function toggleDrawer(open) { document.getElementById('drawer').classList.toggle('open', open); }
 
-    // 核心修复：修改 handleSpin 函数
+    // 核心逻辑：记录 Spin
     function handleSpin(isWin) {
         state.total++; 
         state.current++;
@@ -132,44 +140,47 @@
         if(isWin) { 
             state.wins++; 
             state.zero = 0; 
+            flashFeedback('var(--success)');
         } else { 
             state.loses++; 
             state.zero++; 
+            flashFeedback('#555');
         }
 
-        // 关键修正：只要在备份期间，无论胜负，次数都 -1
-        if(state.backupLeft > 0) {
-            state.backupLeft--;
-        }
+        // 备份逻辑：无论胜负，备份次数都扣减
+        if(state.backupLeft > 0) state.backupLeft--;
         
         checkVibrate();
         sync();
     }
 
-    // 核心修复：修改 startBackup 函数
+    // 按钮视觉反馈
+    function flashFeedback(color) {
+        const btn = document.getElementById('main-action-btn');
+        const original = btn.style.background;
+        btn.style.background = color;
+        setTimeout(() => { btn.style.background = original; }, 150);
+    }
+
+    // 10倍大奖备份逻辑
     function startBackup() {
         if(state.current === 0) return;
-        // 记录触发大奖的那一次 Spin
         state.total++; 
         state.current++; 
         state.wins++;
         state.zero = 0; 
-        
-        // 开启 3 次后续备份（无论结果如何，这 3 次都会在 handleSpin 中扣除）
         state.backupLeft = 3; 
         sync();
     }
 
+    // iPhone 震动优化
     function checkVibrate() {
-    if(!state.useVibrate || !navigator.vibrate) return;
-
-    // 只要达到任何一个临界点就震动
-    if(state.zero >= state.limitZero || state.current >= state.limitMachine || state.backupLeft === 0) {
-        // iOS 兼容性写法：连续触发两次短震
-        navigator.vibrate(200);
-        setTimeout(() => { navigator.vibrate(200); }, 400);
+        if(!state.useVibrate || !navigator.vibrate) return;
+        if(state.zero >= state.limitZero || state.current >= state.limitMachine || state.backupLeft === 0) {
+            navigator.vibrate(200);
+            setTimeout(() => navigator.vibrate(200), 300);
+        }
     }
-}
 
     function nextMachine() {
         if(state.current === 0) return;
@@ -230,23 +241,18 @@
 
     function changeDenom(d) { state.currentDenom = d; sync(); }
 
+    // 配置即时生效修改
     function saveCfg() {
-    state.limitTotal = parseInt(document.getElementById('cfg-total').value) || 3000;
-    state.limitZero = parseInt(document.getElementById('cfg-zero').value) || 3;
-    state.limitMachine = parseInt(document.getElementById('cfg-machine').value) || 20;
-    state.useVibrate = document.getElementById('cfg-vibrate').checked;
-    
-    // 获取新设定的默认面值
-    const newDefault = document.getElementById('cfg-def-denom').value;
-    state.defaultDenom = newDefault;
-
-    // 即时生效逻辑：如果当前机器还没开始（转数为0），直接同步当前面值
-    if (state.current === 0) {
-        state.currentDenom = newDefault;
+        state.limitTotal = parseInt(document.getElementById('cfg-total').value) || 3000;
+        state.limitZero = parseInt(document.getElementById('cfg-zero').value) || 3;
+        state.limitMachine = parseInt(document.getElementById('cfg-machine').value) || 20;
+        state.useVibrate = document.getElementById('cfg-vibrate').checked;
+        state.defaultDenom = document.getElementById('cfg-def-denom').value;
+        
+        // 即时应用面值
+        if(state.current === 0) state.currentDenom = state.defaultDenom;
+        sync();
     }
-
-    sync(); // sync 内部会调用 updateUI()，从而即时更新主界面按钮颜色
-}
 
     function exportCSV() {
         let csv = "\uFEFF编号,面值,总转数,中奖,原因,时间\n";
@@ -266,31 +272,34 @@
     function resetSystem() { if(confirm("确定清空所有记录和配置吗？")) { localStorage.clear(); location.reload(); } }
 
     window.onload = () => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if(saved) {
-        const parsed = JSON.parse(saved);
-        state = { ...state, ...parsed };
-    }
-    
-    // 页面打开时，如果是新机器状态，自动应用默认面值
-    if(state.current === 0) {
-        state.currentDenom = state.defaultDenom;
-    }
-    
-    // 同步配置界面表单值
-    document.getElementById('cfg-total').value = state.limitTotal;
-    document.getElementById('cfg-zero').value = state.limitZero;
-    document.getElementById('cfg-machine').value = state.limitMachine;
-    document.getElementById('cfg-vibrate').checked = state.useVibrate;
-    
-    // 渲染面值下拉菜单
-    const defSelect = document.getElementById('cfg-def-denom');
-    defSelect.innerHTML = state.denomList.map(d => 
-        `<option value="${d}" ${state.defaultDenom === d ? 'selected' : ''}>${d}</option>`
-    ).join('');
-    
-    updateUI(); 
-};
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if(saved) state = { ...state, ...JSON.parse(saved) };
+        if(state.current === 0) state.currentDenom = state.defaultDenom;
+        
+        document.getElementById('cfg-total').value = state.limitTotal;
+        document.getElementById('cfg-zero').value = state.limitZero;
+        document.getElementById('cfg-machine').value = state.limitMachine;
+        document.getElementById('cfg-vibrate').checked = state.useVibrate;
+        document.getElementById('cfg-def-denom').innerHTML = state.denomList.map(d => `<option value="${d}" ${state.defaultDenom === d ? 'selected' : ''}>${d}</option>`).join('');
+        
+        // 绑定大按钮单/双击逻辑
+        const mainBtn = document.getElementById('main-action-btn');
+        mainBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (clickTimer) {
+                clearTimeout(clickTimer);
+                clickTimer = null;
+                handleSpin(true); // 双击中奖
+            } else {
+                clickTimer = setTimeout(() => {
+                    handleSpin(false); // 单击没中
+                    clickTimer = null;
+                }, 250);
+            }
+        });
+
+        updateUI();
+    };
 </script>
 </body>
 </html>
