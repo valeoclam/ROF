@@ -3,27 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Slot 猎手 Pro - 恢复滑动版</title>
+    <title>Slot 猎手 Pro - 绝对稳固版</title>
     <style>
         :root { --bg: #000000; --card: #1a1a1a; --text: #ffffff; --accent: #f1c40f; --danger: #ff4757; --success: #2ed573; --info: #3498db; --backup: #9b59b6; }
         
-        /* 允许滑动，但消除点击延迟 */
         * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
         
+        /* 关键：禁止 Body 滚动，防止整体橡皮筋效果 */
         body { 
             font-family: -apple-system, system-ui, sans-serif; 
             background: var(--bg); 
             color: var(--text); 
             margin: 0; 
             padding: 10px; 
-            min-height: 100vh; /* 改为最小高度，允许内容撑开 */
+            height: 100vh; 
             display: flex; 
             flex-direction: column; 
-            overflow-y: auto; /* 恢复垂直滑动 */
-            -webkit-overflow-scrolling: touch; 
+            overflow: hidden; /* 禁止全屏滚动 */
+            position: fixed; /* 彻底锁死背景 */
+            width: 100%;
         }
         
-        .dashboard { width: 100%; background: var(--card); padding: 12px; border-radius: 12px; margin-bottom: 8px; flex-shrink: 0; border: 1px solid #333; }
+        /* 1. 顶部固定区 */
+        .header-fixed { flex-shrink: 0; }
+        .dashboard { width: 100%; background: var(--card); padding: 12px; border-radius: 12px; margin-bottom: 8px; border: 1px solid #333; }
         .total-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 0 5px; }
         .sub-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .stat-item { background: #262626; padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #333; }
@@ -32,85 +35,90 @@
         .total-value { font-size: 2rem; color: var(--info); }
         .current-value { font-size: 1.5rem; }
         .alert-area { height: 32px; text-align: center; line-height: 32px; font-weight: bold; font-size: 1.1rem; margin-top: 5px; }
-        .warning { color: var(--danger); animation: pulse 1s infinite; }
-        .backup-mode { color: var(--backup); }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
 
-        /* 按键区 - 依然保持巨大 */
-        .main-controls { display: flex; flex-direction: column; gap: 12px; min-height: 350px; }
-        .btn-core { flex: 1; border: none; border-radius: 16px; font-size: 2rem; font-weight: 900; color: white; min-height: 120px; }
+        /* 2. 中间巨型按键固定区 */
+        .main-controls { flex: 2; display: flex; flex-direction: column; gap: 12px; margin-bottom: 10px; }
+        .btn-core { flex: 1; border: none; border-radius: 16px; font-size: 2.2rem; font-weight: 900; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         .btn-win { background: var(--success); }
         .btn-lose { background: var(--danger); }
         
-        .secondary-controls { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 10px; }
-        .btn-func { border: none; padding: 16px; border-radius: 12px; font-size: 1.1rem; font-weight: bold; color: white; }
-        .btn-big { background: var(--backup); }
-        .btn-next { background: var(--info); }
+        .btn-func { border: none; padding: 16px; border-radius: 12px; font-size: 1.1rem; font-weight: bold; color: white; margin-bottom: 8px; }
+        .btn-big { background: var(--backup); width: 100%; }
+        .btn-next { background: var(--info); width: 100%; }
         button:active { opacity: 0.6; transform: scale(0.97); }
 
-        .footer-info { margin-top: 15px; padding-bottom: 30px; }
-        .history { min-height: 60px; font-size: 0.75rem; background: #111; padding: 8px; border-radius: 8px; color: #777; border: 1px solid #222; word-break: break-all; }
-        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; background: #1a1a1a; padding: 8px; border-radius: 8px; }
-        .config-item { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: #999; }
+        /* 3. 底部局部滚动区 - 只有这里可以滑动 */
+        .scrollable-footer { 
+            flex: 1; 
+            overflow-y: auto; 
+            background: #0a0a0a; 
+            border-radius: 12px; 
+            padding: 10px; 
+            border: 1px solid #222;
+            -webkit-overflow-scrolling: touch; 
+        }
+        .history { font-size: 0.75rem; color: #666; word-break: break-all; margin-bottom: 15px; }
+        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .config-item { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: #888; padding: 5px 0; }
         input { background: #333; border: 1px solid #444; color: #fff; width: 50px; height: 26px; text-align: center; border-radius: 4px; font-weight: bold; }
-        .clear-btn { background: none; border: 1px solid #444; color: #555; font-size: 0.7rem; padding: 8px; border-radius: 4px; grid-column: span 2; margin-top: 8px; }
+        .clear-btn { background: none; border: 1px solid #333; color: #444; font-size: 0.7rem; padding: 10px; border-radius: 4px; width: 100%; margin-top: 10px; }
+
+        .warning { color: var(--danger); animation: pulse 1s infinite; }
+        .backup-mode { color: var(--backup); }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
 
-<div class="dashboard">
-    <div class="total-row">
-        <span class="label" style="font-size: 0.9rem;">总 SPIN 累计</span>
-        <span id="total-spins" class="value total-value" onclick="editVal('total')">0</span>
-    </div>
-    <div class="sub-row">
-        <div class="stat-item">
-            <span class="label">当前机次数</span>
-            <span id="current-spins" class="value current-value" onclick="editVal('current')">0</span>
+<div class="header-fixed">
+    <div class="dashboard">
+        <div class="total-row">
+            <span class="label" style="font-size: 0.9rem;">总 SPIN 累计</span>
+            <span id="total-spins" class="value total-value" onclick="editVal('total')">0</span>
         </div>
-        <div class="stat-item">
-            <span class="label">连续 0 中奖</span>
-            <span id="consecutive-zero" class="value current-value" onclick="editVal('zero')">0</span>
+        <div class="sub-row">
+            <div class="stat-item">
+                <span class="label">当前机次数</span>
+                <span id="current-spins" class="value current-value" onclick="editVal('current')">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="label">连续 0 中奖</span>
+                <span id="consecutive-zero" class="value current-value" onclick="editVal('zero')">0</span>
+            </div>
         </div>
+        <div id="alert-msg" class="alert-area"></div>
     </div>
-    <div id="alert-msg" class="alert-area"></div>
 </div>
 
 <div class="main-controls">
     <button class="btn-core btn-win" onclick="recordSpin(true)">中奖 (>0)</button>
     <button class="btn-core btn-lose" onclick="recordSpin(false)">没中 (0)</button>
-</div>
-
-<div class="secondary-controls">
-    <button class="btn-func btn-big" onclick="triggerBigWin()">⭐ 触发 10倍大奖 (开启备份)</button>
+    <button class="btn-func btn-big" onclick="triggerBigWin()">⭐ 10倍大奖 (开启备份)</button>
     <button class="btn-func btn-next" onclick="changeMachine()">换下一台 (结算历史)</button>
 </div>
 
-<div class="footer-info">
-    <div class="history" id="history-log">历史: </div>
+<div class="scrollable-footer">
+    <div class="history" id="history-log">历史记录将在此显示...</div>
     <div class="config-grid">
-        <div class="config-item">目标次数:<input type="number" id="limit-total" value="3000" onchange="saveAll()"></div>
-        <div class="config-item">连黑止损:<input type="number" id="limit-zero" value="3" onchange="saveAll()"></div>
-        <div class="config-item">单机上限:<input type="number" id="limit-machine" value="20" onchange="saveAll()"></div>
-        <div class="config-item">备份次数:<input type="number" id="limit-backup" value="3" onchange="saveAll()"></div>
-        <button class="clear-btn" onclick="clearAll()">重置所有数据</button>
+        <div class="config-item">目标:<input type="number" id="limit-total" value="3000" onchange="saveAll()"></div>
+        <div class="config-item">连黑:<input type="number" id="limit-zero" value="3" onchange="saveAll()"></div>
+        <div class="config-item">上限:<input type="number" id="limit-machine" value="20" onchange="saveAll()"></div>
+        <div class="config-item">备份:<input type="number" id="limit-backup" value="3" onchange="saveAll()"></div>
     </div>
+    <button class="clear-btn" onclick="clearAll()">重置所有数据</button>
 </div>
 
 <script>
-    // 修复脚本：精准拦截双击缩放和多指缩放，但不拦截单指滑动
+    // 拦截双击缩放逻辑
     let lastClickTime = 0;
-    document.addEventListener('touchstart', function (event) {
-        if (event.touches.length > 1) {
-            event.preventDefault(); // 阻止多指缩放
-        }
+    document.addEventListener('touchstart', function (e) {
+        if (e.touches.length > 1) e.preventDefault();
         let now = Date.now();
-        if (now - lastClickTime < 300) {
-            event.preventDefault(); // 阻止 300ms 内的双击
-        }
+        if (now - lastClickTime < 300) e.preventDefault();
         lastClickTime = now;
     }, { passive: false });
 
+    // 数据持久化逻辑 (与前版本一致)
     let data = { totalSpins: 0, currentSpins: 0, consecutiveZero: 0, machineCount: 1, backupCounter: -1, history: "" };
 
     function saveAll() {
@@ -118,27 +126,27 @@
         data.limitZero = document.getElementById('limit-zero').value;
         data.limitMachine = document.getElementById('limit-machine').value;
         data.limitBackup = document.getElementById('limit-backup').value;
-        localStorage.setItem('slot_final_v3', JSON.stringify(data));
+        localStorage.setItem('slot_final_v4', JSON.stringify(data));
         updateUI();
     }
 
     function loadAll() {
-        const saved = localStorage.getItem('slot_final_v3');
+        const saved = localStorage.getItem('slot_final_v4');
         if(saved) {
             data = JSON.parse(saved);
             document.getElementById('limit-total').value = data.limitTotal || 3000;
             document.getElementById('limit-zero').value = data.limitZero || 3;
             document.getElementById('limit-machine').value = data.limitMachine || 20;
             document.getElementById('limit-backup').value = data.limitBackup || 3;
-            document.getElementById('history-log').innerHTML = "历史: " + (data.history || "");
+            if(data.history) document.getElementById('history-log').innerHTML = "历史: " + data.history;
         }
         updateUI();
     }
 
     function editVal(type) {
-        let title = type === 'total' ? "总累计次数" : (type === 'current' ? "单机次数" : "连黑次数");
+        let title = type === 'total' ? "总累计" : (type === 'current' ? "单机" : "连黑");
         let oldVal = type === 'total' ? data.totalSpins : (type === 'current' ? data.currentSpins : data.consecutiveZero);
-        let val = prompt(`修改${title}:`, oldVal);
+        let val = prompt(`手动修正${title}次数:`, oldVal);
         if(val !== null) {
             let n = parseInt(val) || 0;
             if(type === 'total') data.totalSpins = n;
@@ -157,7 +165,7 @@
         if (data.backupCounter >= 0) {
             data.backupCounter++;
             if (data.backupCounter >= maxBackup) {
-                alert(`${maxBackup}次备份(Backup)已完成！`);
+                alert(`Backup已完成！`);
                 data.backupCounter = -1;
             }
         }
@@ -167,15 +175,13 @@
     function triggerBigWin() {
         data.totalSpins++; data.currentSpins++; data.consecutiveZero = 0;
         data.backupCounter = 0;
-        const maxBackup = parseInt(document.getElementById('limit-backup').value);
         saveAll();
-        alert(`大奖已记入！接下来的${maxBackup}次为备份确认。`);
     }
 
     function changeMachine() {
-        let reason = "手动";
-        if(data.consecutiveZero >= document.getElementById('limit-zero').value) reason = "连黑";
-        else if(data.currentSpins >= document.getElementById('limit-machine').value) reason = "达标";
+        let reason = "M";
+        if(data.consecutiveZero >= document.getElementById('limit-zero').value) reason = "Z";
+        else if(data.currentSpins >= document.getElementById('limit-machine').value) reason = "L";
 
         data.history = `[#${data.machineCount}: ${data.currentSpins}-${reason}] ` + data.history;
         data.currentSpins = 0; data.consecutiveZero = 0; data.backupCounter = -1; data.machineCount++;
@@ -194,14 +200,14 @@
         const lm = parseInt(document.getElementById('limit-machine').value);
         const maxB = parseInt(document.getElementById('limit-backup').value);
 
-        if (data.backupCounter >= 0) { msg.innerHTML = `<span class="backup-mode">🔄 备份确认中: ${data.backupCounter}/${maxB}</span>`; }
-        else if (data.consecutiveZero >= lz) { msg.innerHTML = `<span class="warning">⚠️ 触发连黑，请换机!</span>`; }
+        if (data.backupCounter >= 0) { msg.innerHTML = `<span class="backup-mode">🔄 备份确认: ${data.backupCounter}/${maxB}</span>`; }
+        else if (data.consecutiveZero >= lz) { msg.innerHTML = `<span class="warning">⚠️ 触发连黑止损!</span>`; }
         else if (data.currentSpins >= lm) { msg.innerHTML = `<span class="warning">🛑 达到单机上限!</span>`; }
     }
 
     function clearAll() {
-        if(confirm("确定要重置所有数据吗？")) { 
-            localStorage.removeItem('slot_final_v3'); 
+        if(confirm("确定清空数据并重置吗？")) { 
+            localStorage.removeItem('slot_final_v4'); 
             location.reload(); 
         }
     }
