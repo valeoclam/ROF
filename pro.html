@@ -408,7 +408,23 @@
     function doSort(f) {
         sortState.asc = (sortState.field === f) ? !sortState.asc : true;
         sortState.field = f;
-        filteredRecords.sort((a,b) => (a[f] < b[f] ? -1 : 1) * (sortState.asc ? 1 : -1));
+
+        filteredRecords.sort((a, b) => {
+            let valA = a[f];
+            let valB = b[f];
+
+            // 针对 points 字段进行数值化处理
+            if (f === 'points') {
+                valA = parseInt(valA) || 0;
+                valB = parseInt(valB) || 0;
+            }
+
+            // 通用排序逻辑
+            if (valA < valB) return sortState.asc ? -1 : 1;
+            if (valA > valB) return sortState.asc ? 1 : -1;
+            return 0;
+        });
+
         updateTable();
     }
 
