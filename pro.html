@@ -152,9 +152,24 @@
 
     window.onload = () => {
         const yr = document.getElementById('dl-year'), mo = document.getElementById('dl-month');
+        // 生成年份选项 (2025-2027)
         for(let i=25; i<=27; i++) yr.add(new Option(`20${i}年`, i));
+        // 生成月份选项 (01-12)
         for(let i=1; i<=12; i++) mo.add(new Option(`${i}月`, i.toString().padStart(2, '0')));
-        yr.value="26"; mo.value="03";
+
+        // 【核心修复】：获取当前实际的年份和月份
+        const now = new Date();
+        const currentYearStr = now.getFullYear().toString().slice(-2); // 获取年份后两位，如 "26"
+        const currentMonthStr = (now.getMonth() + 1).toString().padStart(2, '0'); // 获取月份，补齐两位，如 "04"
+
+        // 自动设为当前时间（如果当前年份不在 25-27 范围内，默认选列表第一个）
+        if (["25", "26", "27"].includes(currentYearStr)) {
+            yr.value = currentYearStr;
+        } else {
+            yr.value = "26"; // 超出范围时的回退默认值
+        }
+        mo.value = currentMonthStr;
+
         renderSuffixSelector();
         initDragAndDrop();
         applySavedColumnOrder();
