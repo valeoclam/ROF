@@ -359,10 +359,32 @@
         pop.style.display = 'block';
         pop.style.left = Math.min(r.left, window.innerWidth - 260) + 'px';
         pop.style.top = (r.bottom + window.scrollY + 5) + 'px';
-        // 1. 获取联动后的唯一值列表
+        // 1. 获取联动后的唯一值列表（不直接在后面加 .sort()）
         const availableVals = [...new Set(allRecords.filter(r => 
             Object.keys(currentFilters).every(k => k === f || currentFilters[k].includes(r[k]))
         ).map(x => x[f]))];
+
+        // 2. 【核心修改】：针对不同字段应用不同的排序规则
+        if (f === 'month' || f === 'dateStr') {
+            // 如果是月份或具体航行日期，将其转换为时间戳进行升序排列
+            availableVals.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+        } else if (f === 'points') {
+            // 如果是分数，按数值大小排列
+            availableVals.sort((a, b) => (parseInt(a) || 0) - (parseInt(b) || 0));
+        } else {
+            // 其他字段（如船名、港口）按字母顺序排列，并支持自然数排序（如让 10 排在 2 后面）
+            availableVals.sort((a, b) => 
+                String(a).localeCompare(String(b), undefined, {numeric: true, sensitivity: 'base'})
+            );
+        }
+
+        // 3. 接下来是原有的渲染逻辑（填充 popover-list 的 innerHTML）
+        document.getElementById('popover-list').innerHTML = availableVals.map(v => `
+            <li><label style="display:flex;align-items:center;padding:4px 0;cursor:pointer">
+                <input type="checkbox" value="${v}" ${(!currentFilters[f] || currentFilters[f].includes(v)) ? 'checked' : ''}>
+                <span style="margin-left:5px">${v}</span>
+            </label></li>
+        `).join('');
 
         // 2. 核心修复：针对不同字段进行排序优化
         if (f === 'month' || f === 'dateStr') {
