@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>RoyalOfferFilterPro</title>
+    <title>RoyalOfferFilterPro26.10.3.001</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -450,30 +450,41 @@
             let valA = a[f];
             let valB = b[f];
 
-            // 1. Points 字段：按纯数字排序
+            // 1. Points 字段：按纯数字大小排序
             if (f === 'points') {
                 valA = parseFloat(valA) || 0;
                 valB = parseFloat(valB) || 0;
             }
 
-            // 2. Itinerary 字段：提取开头的数字（行程天数/晚数）进行数值排序
-            if (f === 'itinerary') {
-                // 正则提取字符串开头的数字（例如 "7 Night..." 提取出 7）
-                const numA = (String(valA).match(/\d+/) || [0])[0];
-                const numB = (String(valB).match(/\d+/) || [0])[0];
-
-                valA = parseInt(numA, 10);
-                valB = parseInt(numB, 10);
-
-                // 如果提取到的天数相同，再按照字符串原文排序（保持同一天数内部的字母顺序）
-                if (valA === valB) {
+            // 2. Itinerary 字段：提取行程天数数字进行排序
+            else if (f === 'itinerary') {
+                const numA = parseInt((String(valA).match(/\d+/) || [0])[0], 10);
+                const numB = parseInt((String(valB).match(/\d+/) || [0])[0], 10);
+            
+                if (numA !== numB) {
+                    valA = numA;
+                    valB = numB;
+                } else {
+                    // 天数相同时按字母智能排序
                     return sortState.asc 
                         ? String(a[f]).localeCompare(String(b[f]), undefined, {numeric: true, sensitivity: 'base'})
                         : String(b[f]).localeCompare(String(a[f]), undefined, {numeric: true, sensitivity: 'base'});
                 }
             }
 
-            // 通用比较逻辑
+            // 3. Sail Date (dateStr) 字段：直接使用解析时保留的精确时间戳 dateValue
+            else if (f === 'dateStr' || f === 'dateValue') {
+                valA = a.dateValue || 0;
+                valB = b.dateValue || 0;
+            }
+
+            // 4. Month 字段：将月份文本（如 "April 2026"）转换为时间戳排序
+            else if (f === 'month') {
+                valA = new Date(a[f]).getTime() || 0;
+                valB = new Date(b[f]).getTime() || 0;
+            }
+
+            // 通用比较逻辑（升序/降序）
             if (valA < valB) return sortState.asc ? -1 : 1;
             if (valA > valB) return sortState.asc ? 1 : -1;
             return 0;
